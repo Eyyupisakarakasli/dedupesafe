@@ -1,32 +1,35 @@
-# React + TypeScript + Vite
+# HubSpot Duplicate Contact Checker
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Upload your HubSpot contact CSV. Find duplicates that exact-match tools miss.
 
-Currently, two official plugins are available:
+👉 **[hubspot-dup-checker.vercel.app](https://hubspot-dup-checker.vercel.app)**
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## What it does
 
-## React Compiler
+HubSpot's native dedupe only catches exact email matches. This tool uses fuzzy matching across 5 fields to find real duplicates:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+| Field | Method |
+|-------|--------|
+| Email | Exact + same-domain fuzzy (john@acme.com ≈ john.smith@acme.com) |
+| Phone | Digits-only, last-8-digit suffix match |
+| Name | Jaro-Winkler similarity (Jon ≈ John, Smith ≈ Smyth) |
+| Company | Suffix-stripped comparison (Acme Corp = ACME Corporation) |
 
-## Expanding the Oxlint configuration
+## Privacy
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+Everything runs locally in your browser. No upload, no server, no analytics, no tracking. Your contact data never leaves your device.
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
-```
+## Usage
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+1. Export contacts from HubSpot as CSV
+2. Drop the CSV onto the page
+3. Review duplicate groups and merge suggestions
+4. Download the cleaned CSV
+
+## Tech
+
+- Vite + React + TypeScript
+- Client-side CSV parsing (PapaParse)
+- Jaro-Winkler fuzzy string matching
+- Union-Find transitive grouping
+- Deployed on Vercel

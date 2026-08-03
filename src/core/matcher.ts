@@ -1,8 +1,8 @@
 import type { Contact, DedupeField, DuplicateGroup, SimilarityResult } from './types'
 
 export function jaroWinkler(a: string, b: string): number {
-  if (a === b) return 1
   if (!a || !b) return 0
+  if (a === b) return 1
 
   const aLen = a.length
   const bLen = b.length
@@ -39,6 +39,9 @@ export function jaroWinkler(a: string, b: string): number {
 
   const jaro = (matchCount / aLen + matchCount / bLen + (matchCount - transpositions) / matchCount) / 3
 
+  // Gate prefix bonus on jaro >= 0.7
+  if (jaro < 0.7) return jaro
+
   let prefix = 0
   const maxPrefix = 4
   for (let i = 0; i < Math.min(aLen, bLen, maxPrefix); i++) {
@@ -49,6 +52,33 @@ export function jaroWinkler(a: string, b: string): number {
   return jaro + prefix * 0.1 * (1 - jaro)
 }
 
+function emailSimilarity(a: string, b: string): number {
+  if (!a && !b) return 0
+  if (!a || !b) return 0
+  if (a === b) return 1
+
+  const [localA, domainA] = a.split('@')
+  const [localB, domainB] = b.split('@')
+  if (!localA || !localB || !domainA || !domainB) return 0
+
+  // Same domain + similar local-part (typical for name variants)
+  if (domainA === domainB) {
+    const localSim = jaroWinkler(localA, localB)
+    if (localSim >= 0.85) return 0.85
+    // Same domain, common local-part patterns
+    if (
+      localA === `${localB.split('.')[0]}` ||
+      localB === `${localA.split('.')[0]}` ||
+      localA.replace(/[._-]/g, '') === localB.replace(/[._-]/g, '') ||
+      (localA.length > 3 && localB.includes(localA)) ||
+      (localB.length > 3 && localA.includes(localB))
+    ) return 0.80
+    return localSim * 0.5 // weak signal
+  }
+
+  return 0
+}
+
 function phoneSimilarity(a: string, b: string): number {
   const digitsA = a.replace(/\D/g, '')
   const digitsB = b.replace(/\D/g, '')
@@ -56,37 +86,44 @@ function phoneSimilarity(a: string, b: string): number {
   if (!digitsA || !digitsB) return 0
   if (digitsA === digitsB) return 1
 
-  // Fuzzy phone: last 8 digits match
-  const suffixLen = Math.min(8, digitsA.length, digitsB.length)
-  return digitsA.slice(-suffixLen) === digitsB.slice(-suffixLen) ? 0.9 : 0
+  // Fuzzy phone: last 8 digits match (minimum 6 digit length)
+  const minLen = Math.min(digitsA.length, digitsB.length)
+  if (minLen < 6) return 0
+  const suffixLen = Math.min(8, minLen)
+  return digitsA.slice(-suffixLen) === digitsB.slice(-suffixLen) ? 0.85 : 0
 }
 
 function companySimilarity(a: string, b: string): number {
   if (!a && !b) return 0
   if (!a || !b) return 0
-  // Strip common suffixes
-  const strip = (s: string) => s.replace(/\b(inc|llc|ltd|corp|corporation|co|limited|gmbh|sa|sarl)\b/gi, '').replace(/[^a-z0-9]/g, '').trim()
+  const strip = (s: string) => {
+    const lower = s.toLowerCase()
+    return lower
+      .replace(/\b(inc|llc|ltd|corp|corporation|co|limited|gmbh|sa|sarl)\b/gi, '')
+      .replace(/[^a-z0-9\u00C0-\u024F]/g, '')
+      .trim()
+  }
   const strippedA = strip(a)
   const strippedB = strip(b)
+  if (!strippedA && !strippedB) return 0
+  if (!strippedA || !strippedB) return 0
   if (strippedA === strippedB) return 1
   if (strippedA.includes(strippedB) || strippedB.includes(strippedA)) return 0.9
   return jaroWinkler(strippedA, strippedB)
 }
 
 const FIELD_WEIGHTS: Record<DedupeField, number> = {
-  email: 0.40,
+  email: 0.35,
   phone: 0.25,
   firstName: 0.10,
   lastName: 0.15,
-  company: 0.10,
+  company: 0.15,
 }
 
-interface FieldComparator {
-  (a: string, b: string): number
-}
+type FieldComparator = (a: string, b: string) => number
 
 const COMPARATORS: Record<DedupeField, FieldComparator> = {
-  email: (a, b) => a === b ? 1 : 0,
+  email: emailSimilarity,
   firstName: jaroWinkler,
   lastName: jaroWinkler,
   phone: phoneSimilarity,
@@ -99,14 +136,20 @@ export function compareContacts(a: Contact, b: Contact): SimilarityResult {
   let weightSum = 0
 
   for (const field of Object.keys(FIELD_WEIGHTS) as DedupeField[]) {
-    const score = COMPARATORS[field](a[field], b[field])
+    const valA = a[field]
+    const valB = b[field]
+    // Skip field entirely when either side is empty
+    if (!valA || !valB) {
+      scores[field] = 0
+      continue
+    }
+    const score = COMPARATORS[field](valA, valB)
     scores[field] = score
     weightedSum += score * FIELD_WEIGHTS[field]
-    // Only count non-empty fields in the weight sum for both contacts
-    if (a[field] || b[field]) weightSum += FIELD_WEIGHTS[field]
+    weightSum += FIELD_WEIGHTS[field]
   }
 
-  const weightedScore = weightSum > 0 ? Math.round((weightedSum / weightSum) * 100) : 0
+  const weightedScore = weightSum > 0 ? Math.min(100, Math.round((weightedSum / weightSum) * 100)) : 0
 
   const riskLevel: SimilarityResult['riskLevel'] =
     weightedScore >= 90 ? 'certain' :
@@ -118,7 +161,6 @@ export function compareContacts(a: Contact, b: Contact): SimilarityResult {
 }
 
 function findMasterContact(contacts: Contact[]): Contact {
-  // Most complete record = most non-empty fields
   let best = contacts[0]
   let bestScore = 0
   for (const c of contacts) {
@@ -128,10 +170,7 @@ function findMasterContact(contacts: Contact[]): Contact {
       (c.lastName ? 1 : 0) +
       (c.phone ? 1 : 0) +
       (c.company ? 1 : 0)
-    if (score > bestScore) {
-      bestScore = score
-      best = c
-    }
+    if (score > bestScore) { bestScore = score; best = c }
   }
   return best
 }
@@ -139,73 +178,118 @@ function findMasterContact(contacts: Contact[]): Contact {
 export function findDuplicateGroups(contacts: Contact[]): { groups: DuplicateGroup[]; uniqueContacts: Contact[] } {
   if (contacts.length < 2) return { groups: [], uniqueContacts: contacts }
 
-  // Build pairs above threshold
-  const threshold = 50
-  const pairs: SimilarityResult[] = []
-  const indexesInGroup = new Set<number>()
+  // Blocking-cost guard: pre-index contacts by email domain + last-name initial + phone suffix
+  const domainMap = new Map<string, number[]>()
+  const lastNameMap = new Map<string, number[]>()
+  const phoneMap = new Map<string, number[]>()
 
   for (let i = 0; i < contacts.length; i++) {
-    for (let j = i + 1; j < contacts.length; j++) {
-      // Skip if neither has email (weak signal)
-      if (!contacts[i].email && !contacts[j].email) continue
-      const result = compareContacts(contacts[i], contacts[j])
+    const c = contacts[i]
+    if (c.email) {
+      const domain = c.email.split('@')[1]
+      if (domain) {
+        const existing = domainMap.get(domain) ?? []
+        existing.push(i)
+        domainMap.set(domain, existing)
+      }
+    }
+    if (c.lastName) {
+      const initial = c.lastName[0].toLowerCase()
+      const existing = lastNameMap.get(initial) ?? []
+      existing.push(i)
+      lastNameMap.set(initial, existing)
+    }
+    if (c.phone) {
+      const suffix = c.phone.slice(-6)
+      const existing = phoneMap.get(suffix) ?? []
+      existing.push(i)
+      phoneMap.set(suffix, existing)
+    }
+  }
+
+  const threshold = 50
+  const pairs: SimilarityResult[] = []
+
+  // Compare only candidates with at least one shared signal
+  for (let i = 0; i < contacts.length; i++) {
+    const a = contacts[i]
+    const candidates = new Set<number>()
+
+    if (a.email) {
+      const domain = a.email.split('@')[1]
+      if (domain) for (const j of domainMap.get(domain) ?? []) if (j > i) candidates.add(j)
+    }
+    if (a.lastName) {
+      const initial = a.lastName[0].toLowerCase()
+      for (const j of lastNameMap.get(initial) ?? []) if (j > i) candidates.add(j)
+    }
+    if (a.phone) {
+      const suffix = a.phone.slice(-6)
+      for (const j of phoneMap.get(suffix) ?? []) if (j > i) candidates.add(j)
+    }
+
+    for (const j of candidates) {
+      const result = compareContacts(a, contacts[j])
       if (result.weightedScore >= threshold) {
         pairs.push(result)
-        indexesInGroup.add(i)
-        indexesInGroup.add(j)
       }
     }
   }
 
   if (pairs.length === 0) return { groups: [], uniqueContacts: contacts }
 
-  // Transitive grouping via union-find
-  const parent = contacts.map((_, i) => i)
+  // Union-find: use array positions consistently
+  const parent = contacts.map((_, idx) => idx)
   function find(x: number): number {
-    while (parent[x] !== x) {
-      parent[x] = parent[parent[x]]
-      x = parent[x]
-    }
+    while (parent[x] !== x) { parent[x] = parent[parent[x]]; x = parent[x] }
     return x
   }
-  function union(x: number, y: number) {
-    parent[find(x)] = find(y)
-  }
+  function union(x: number, y: number) { parent[find(x)] = find(y) }
+
+  // Build position map
+  const posByIndex = new Map<number, number>()
+  for (let i = 0; i < contacts.length; i++) posByIndex.set(contacts[i].rowIndex, i)
 
   for (const pair of pairs) {
-    union(pair.contactA.rowIndex, pair.contactB.rowIndex)
+    const posA = posByIndex.get(pair.contactA.rowIndex) ?? pair.contactA.rowIndex
+    const posB = posByIndex.get(pair.contactB.rowIndex) ?? pair.contactB.rowIndex
+    union(posA, posB)
   }
 
-  // Collect groups
-  const groupMap = new Map<number, { contacts: Set<Contact>; pairs: SimilarityResult[] }>()
-  for (const i of indexesInGroup) {
-    const root = find(i)
-    if (!groupMap.has(root)) groupMap.set(root, { contacts: new Set(), pairs: [] })
-    groupMap.get(root)!.contacts.add(contacts[i])
+  // Collect groups by position
+  const membersByRoot = new Map<number, Set<number>>()
+  const pairsByRoot = new Map<number, SimilarityResult[]>()
+  for (let pos = 0; pos < contacts.length; pos++) {
+    const root = find(pos)
+    if (!membersByRoot.has(root)) { membersByRoot.set(root, new Set()); pairsByRoot.set(root, []) }
+    membersByRoot.get(root)!.add(pos)
   }
-
   for (const pair of pairs) {
-    const root = find(pair.contactA.rowIndex)
-    groupMap.get(root)?.pairs.push(pair)
+    const posA = posByIndex.get(pair.contactA.rowIndex) ?? pair.contactA.rowIndex
+    const root = find(posA)
+    if (root !== undefined) pairsByRoot.get(root)?.push(pair)
   }
 
   const groups: DuplicateGroup[] = []
-  for (const [root, data] of groupMap) {
-    const contactList = [...data.contacts].sort((a, b) => a.rowIndex - b.rowIndex)
+  for (const [root, members] of membersByRoot) {
+    if (members.size < 2) continue
+    const contactList = [...members].map(pos => contacts[pos]).sort((a, b) => a.rowIndex - b.rowIndex)
     const master = findMasterContact(contactList)
-    const avgRisk = Math.round(data.pairs.reduce((s, p) => s + p.weightedScore, 0) / data.pairs.length)
+    const groupPairs = pairsByRoot.get(root) ?? []
+    const avgRisk = groupPairs.length > 0
+      ? Math.round(groupPairs.reduce((s, p) => s + p.weightedScore, 0) / groupPairs.length)
+      : 0
 
     groups.push({
       id: `group-${root}`,
       contacts: contactList,
       masterContact: master,
-      pairs: data.pairs,
+      pairs: groupPairs,
       riskScore: avgRisk,
       riskLevel: avgRisk >= 90 ? 'certain' : avgRisk >= 70 ? 'likely' : 'possible',
     })
   }
 
-  // Sort: highest risk first
   groups.sort((a, b) => b.riskScore - a.riskScore)
 
   const membersInGroups = new Set(groups.flatMap(g => g.contacts.map(c => c.rowIndex)))

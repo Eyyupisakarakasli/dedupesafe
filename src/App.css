@@ -117,6 +117,17 @@ header p {
 .scan-btn:hover:not(:disabled) { background: #ea580c; }
 .scan-btn:disabled { background: #3f3f46; color: #71717a; cursor: not-allowed; }
 
+.warning-banner {
+  background: rgba(234, 179, 8, 0.1);
+  border: 1px solid rgba(234, 179, 8, 0.3);
+  color: #facc15;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  text-align: center;
+  margin-bottom: 12px;
+}
+
 .back-btn {
   display: block; width: 100%;
   background: transparent; border: 1px solid #3f3f46; color: #a1a1aa;

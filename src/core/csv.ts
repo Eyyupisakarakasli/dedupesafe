@@ -1,11 +1,13 @@
 import Papa from 'papaparse'
 import type { ColumnMapping, Contact, DedupeField, ParseResult } from './types'
 
-const HUBSPOT_EMAIL_KEYS = ['email', 'e-mail', 'email address', 'contact email']
-const HUBSPOT_FIRST_NAME_KEYS = ['first name', 'firstname', 'first_name', 'given name']
-const HUBSPOT_LAST_NAME_KEYS = ['last name', 'lastname', 'last_name', 'surname', 'family name']
-const HUBSPOT_PHONE_KEYS = ['phone number', 'phone', 'mobile phone', 'mobilephone', 'mobile', 'phone number (primary)', 'business phone']
-const HUBSPOT_COMPANY_KEYS = ['company name', 'company', 'organization', 'organisation', 'business name', 'associated company']
+const FIELD_CANDIDATES: Record<DedupeField, string[]> = {
+  email: ['email', 'e-mail', 'primary email'],
+  firstName: ['first name', 'firstname', 'first_name', 'given name'],
+  lastName: ['last name', 'lastname', 'last_name', 'surname', 'family name'],
+  phone: ['phone number', 'phone', 'mobile phone', 'mobilephone', 'phone number (primary)', 'business phone'],
+  company: ['company name', 'company', 'organization', 'associated company'],
+}
 
 function normalizeHeader(header: string): string {
   return header.trim().toLowerCase()
@@ -15,28 +17,46 @@ function normalizeHeader(header: string): string {
     .replace(/[""]/g, '"')
 }
 
-function findBestMatch(headers: string[], candidates: string[]): string | null {
-  const normalized = headers.map(h => normalizeHeader(h))
-  for (const candidate of candidates) {
-    const index = normalized.findIndex(h => h === candidate)
-    if (index !== -1) return headers[index]
-  }
-  // Partial match fallback
-  for (const candidate of candidates) {
-    const index = normalized.findIndex(h => h.includes(candidate) || candidate.includes(h))
-    if (index !== -1) return headers[index]
-  }
-  return null
-}
-
 export function detectHubSpotMapping(headers: string[]): ColumnMapping {
-  return {
-    email: findBestMatch(headers, HUBSPOT_EMAIL_KEYS),
-    firstName: findBestMatch(headers, HUBSPOT_FIRST_NAME_KEYS),
-    lastName: findBestMatch(headers, HUBSPOT_LAST_NAME_KEYS),
-    phone: findBestMatch(headers, HUBSPOT_PHONE_KEYS),
-    company: findBestMatch(headers, HUBSPOT_COMPANY_KEYS),
+  const used = new Set<string>()
+  const mapping: ColumnMapping = { email: null, firstName: null, lastName: null, phone: null, company: null }
+
+  for (const [field, candidates] of Object.entries(FIELD_CANDIDATES) as [DedupeField, string[]][]) {
+    // Score all headers for this field
+    const normalized = headers.map(h => normalizeHeader(h))
+    let bestHeader: string | null = null
+    let bestScore = -1
+
+    for (let i = 0; i < headers.length; i++) {
+      if (used.has(headers[i])) continue
+      const h = normalized[i]
+      if (h.length === 0) continue
+
+      // Exact match = score 10
+      if (candidates.includes(h)) {
+        bestHeader = headers[i]
+        bestScore = 10 + candidates.indexOf(h) * 0.01 // prefer earlier candidates
+        break
+      }
+
+      // Substring match = score 5 (only for headers >= 3 chars)
+      if (h.length >= 3) {
+        for (const c of candidates) {
+          if (c.length >= 3 && h.includes(c)) {
+            const score = 5 + candidates.indexOf(c) * 0.01
+            if (score > bestScore) { bestScore = score; bestHeader = headers[i] }
+          }
+        }
+      }
+    }
+
+    if (bestHeader) {
+      mapping[field] = bestHeader
+      used.add(bestHeader)
+    }
   }
+
+  return mapping
 }
 
 export function parseCSV(file: File): Promise<ParseResult> {

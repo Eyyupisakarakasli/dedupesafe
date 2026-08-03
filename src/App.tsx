@@ -2,11 +2,11 @@ import { useCallback, useState } from 'react'
 import { detectHubSpotMapping, normalizeContacts, parseCSV } from './core/csv'
 import { findDuplicateGroups } from './core/matcher'
 import { buildMergeSuggestions, downloadFile, exportCleanedCSV } from './core/export'
-import type { ColumnMapping, DedupeField, DuplicateGroup, ParseResult } from './core/types'
+import type { ColumnMapping, Contact, DedupeField, DuplicateGroup, ParseResult } from './core/types'
 import demoCsvUrl from './data/demo-hubspot-contacts.csv?url'
 import './App.css'
 
-type Step = 'upload' | 'mapping' | 'results'
+type Step = 'upload' | 'mapping' | 'scanning' | 'results'
 
 const FIELD_LABELS: Record<DedupeField, string> = {
   email: 'Email',
@@ -24,12 +24,29 @@ export default function App() {
   const [mapping, setMapping] = useState<ColumnMapping>({ email: null, firstName: null, lastName: null, phone: null, company: null })
   const [error, setError] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState(false)
-  const [result, setResult] = useState<{ groups: DuplicateGroup[]; unique: number; total: number } | null>(null)
+  const [result, setResult] = useState<{ groups: DuplicateGroup[]; uniqueContacts: Contact[]; total: number } | null>(null)
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
+
+  const dismissGroup = useCallback((id: string) => {
+    setDismissedIds(prev => new Set(prev).add(id))
+  }, [])
+
+  const restoreGroup = useCallback((id: string) => {
+    setDismissedIds(prev => {
+      const next = new Set(prev)
+      next.delete(id)
+      return next
+    })
+  }, [])
 
   const handleFile = useCallback(async (file: File) => {
     setError(null)
-    if (!file.name.endsWith('.csv')) {
+    if (!file.name.toLowerCase().endsWith('.csv') && file.type !== 'text/csv') {
       setError('Please upload a .csv file')
+      return
+    }
+    if (file.size > 50 * 1024 * 1024) {
+      setError('File is too large. Max 50 MB.')
       return
     }
     try {
@@ -50,20 +67,29 @@ export default function App() {
   }, [handleFile])
 
   const handleLoadDemo = useCallback(async () => {
-    const res = await fetch(demoCsvUrl)
-    const blob = await res.blob()
-    handleFile(new File([blob], 'demo.csv', { type: 'text/csv' }))
+    try {
+      const res = await fetch(demoCsvUrl)
+      if (!res.ok) throw new Error('Failed to load demo')
+      const blob = await res.blob()
+      handleFile(new File([blob], 'demo.csv', { type: 'text/csv' }))
+    } catch {
+      setError('Failed to load demo CSV')
+    }
   }, [handleFile])
 
   const mappingComplete = mapping.email !== null
 
   const handleStartScan = useCallback(() => {
     if (!parseResult || !mapping.email) return
-    const contacts = normalizeContacts(parseResult.rows, mapping)
-    const { groups, uniqueContacts } = findDuplicateGroups(contacts)
-    setResult({ groups, unique: uniqueContacts.length, total: contacts.length })
-    setContacts(contacts)
-    setStep('results')
+    setDismissedIds(new Set())
+    setStep('scanning')
+    setTimeout(() => {
+      const contacts = normalizeContacts(parseResult.rows, mapping)
+      const { groups, uniqueContacts } = findDuplicateGroups(contacts)
+      setResult({ groups, uniqueContacts, total: contacts.length })
+      setContacts(contacts)
+      setStep('results')
+    }, 50)
   }, [parseResult, mapping])
 
   const [contacts, setContacts] = useState<import('./core/types').Contact[]>([])
@@ -139,7 +165,28 @@ export default function App() {
         <button className="scan-btn" disabled={!mappingComplete} onClick={handleStartScan}>
           {mappingComplete ? `Scan ${parseResult.totalRows} contacts for duplicates` : 'Map at least the Email column to start'}
         </button>
+        {parseResult.totalRows > 2000 && (
+          <div className="warning-banner">
+            {parseResult.totalRows.toLocaleString()} contacts may take a few seconds. Consider splitting into smaller files.
+          </div>
+        )}
         <button className="back-btn" onClick={() => setStep('upload')}>← Back</button>
+      </div>
+    )
+  }
+
+  // --- Scanning step ---
+  if (step === 'scanning') {
+    return (
+      <div className="app-container">
+        <header>
+          <h1>Scanning for duplicates...</h1>
+          {parseResult && <p>Comparing {parseResult.totalRows} contacts</p>}
+        </header>
+        <div className="scanning-indicator">
+          <div className="spinner" />
+        </div>
+        <p className="privacy-note">This may take a few seconds for large files.</p>
       </div>
     )
   }
@@ -153,7 +200,7 @@ export default function App() {
       <div className="app-container">
         <header>
           <h1>Scan Complete</h1>
-          <p>{result.total} contacts scanned &middot; {result.groups.length} duplicate groups found &middot; {result.unique} unique</p>
+          <p>{result.total} contacts scanned · {result.groups.length} duplicate groups found · {result.uniqueContacts.length} unique</p>
         </header>
 
         <div className="summary-cards">
@@ -166,7 +213,7 @@ export default function App() {
             <span className="card-label">Medium Risk Groups</span>
           </div>
           <div className="summary-card unique">
-            <span className="card-num">{result.unique}</span>
+            <span className="card-num">{result.uniqueContacts.length}</span>
             <span className="card-label">Unique Contacts</span>
           </div>
         </div>
@@ -232,7 +279,7 @@ export default function App() {
 
         {result.groups.length > 0 && (
           <button className="scan-btn" onClick={() => {
-            const csv = exportCleanedCSV(result.groups, [], contacts)
+            const csv = exportCleanedCSV(result.groups, result.uniqueContacts, contacts)
             downloadFile(csv, 'hubspot-contacts-deduplicated.csv')
           }}>
             Download Cleaned CSV
