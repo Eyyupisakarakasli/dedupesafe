@@ -3,7 +3,7 @@ import { detectHubSpotMapping, normalizeContacts, parseCSV } from './core/csv'
 import { findDuplicateGroups } from './core/matcher'
 import { buildMergeSuggestions, downloadFile, exportCleanedCSV } from './core/export'
 import type { ColumnMapping, Contact, DedupeField, DuplicateGroup, ParseResult } from './core/types'
-import demoCsvUrl from './data/demo-hubspot-contacts.csv?url'
+import demoCsvText from './data/demo-hubspot-contacts.csv?raw'
 import './App.css'
 
 type Step = 'upload' | 'mapping' | 'scanning' | 'results'
@@ -66,12 +66,11 @@ export default function App() {
     if (file) handleFile(file)
   }, [handleFile])
 
-  const handleLoadDemo = useCallback(async () => {
+  // Demo CSV is inlined into the bundle at build time, not fetched at runtime.
+  // This keeps `connect-src 'none'` in the CSP viable: the app makes no network requests at all.
+  const handleLoadDemo = useCallback(() => {
     try {
-      const res = await fetch(demoCsvUrl)
-      if (!res.ok) throw new Error('Failed to load demo')
-      const blob = await res.blob()
-      handleFile(new File([blob], 'demo.csv', { type: 'text/csv' }))
+      handleFile(new File([demoCsvText], 'demo.csv', { type: 'text/csv' }))
     } catch {
       setError('Failed to load demo CSV')
     }
@@ -193,14 +192,21 @@ export default function App() {
 
   // --- Results step ---
   if (step === 'results' && result) {
-    const highRisk = result.groups.filter(g => g.riskLevel === 'certain' || g.riskLevel === 'likely')
-    const mediumRisk = result.groups.filter(g => g.riskLevel === 'possible')
+    const activeGroups = result.groups.filter(g => !dismissedIds.has(g.id))
+    const dismissedGroups = result.groups.filter(g => dismissedIds.has(g.id))
+    const highRisk = activeGroups.filter(g => g.riskLevel === 'certain' || g.riskLevel === 'likely')
+    const mediumRisk = activeGroups.filter(g => g.riskLevel === 'possible')
+
+    // Contacts from dismissed groups are kept in full — they are not duplicates.
+    const keptFromDismissed = dismissedGroups.flatMap(g => g.contacts)
+    const rowsAfterCleanup = result.uniqueContacts.length + keptFromDismissed.length + activeGroups.length
+    const rowsRemoved = result.total - rowsAfterCleanup
 
     return (
       <div className="app-container">
         <header>
           <h1>Scan Complete</h1>
-          <p>{result.total} contacts scanned · {result.groups.length} duplicate groups found · {result.uniqueContacts.length} unique</p>
+          <p>{result.total} contacts scanned · {activeGroups.length} duplicate groups found · {result.uniqueContacts.length} unique</p>
         </header>
 
         <div className="summary-cards">
@@ -218,13 +224,15 @@ export default function App() {
           </div>
         </div>
 
-        {result.groups.length === 0 ? (
+        {activeGroups.length === 0 ? (
           <div className="no-results">
-            <p>No duplicates found. Your contact list looks clean.</p>
+            <p>{dismissedGroups.length > 0
+              ? 'No duplicate groups left — you marked them all as not duplicates.'
+              : 'No duplicates found. Your contact list looks clean.'}</p>
           </div>
         ) : (
           <div className="groups-list">
-            {result.groups.map(group => (
+            {activeGroups.map(group => (
               <div key={group.id} className={`group-card ${group.riskLevel}`}>
                 <div className="group-header">
                   <div>
@@ -233,7 +241,16 @@ export default function App() {
                     </span>
                     <span className="group-size">{group.contacts.length} contacts</span>
                   </div>
-                  <span className="master-label">Master: <strong>{group.masterContact.email || group.masterContact.firstName || '—'}</strong></span>
+                  <div className="group-actions">
+                    <span className="master-label">Master: <strong>{group.masterContact.email || group.masterContact.firstName || '—'}</strong></span>
+                    <button
+                      className="dismiss-btn"
+                      onClick={() => dismissGroup(group.id)}
+                      title="Keep all of these contacts — they are different people"
+                    >
+                      Not a duplicate
+                    </button>
+                  </div>
                 </div>
                 <table className="group-table">
                   <thead>
@@ -277,13 +294,44 @@ export default function App() {
           </div>
         )}
 
+        {dismissedGroups.length > 0 && (
+          <div className="dismissed-section">
+            <div className="dismissed-header">
+              <strong>Marked as not duplicates ({dismissedGroups.length})</strong>
+              <button className="link-btn" onClick={() => setDismissedIds(new Set())}>Restore all</button>
+            </div>
+            <ul className="dismissed-list">
+              {dismissedGroups.map(group => (
+                <li key={group.id}>
+                  <span className="dismissed-label">
+                    {group.riskScore}% · {group.contacts.length} contacts ·{' '}
+                    {group.contacts.map(c => c.email || `${c.firstName} ${c.lastName}`.trim() || `row ${c.rowIndex + 2}`).join(', ')}
+                  </span>
+                  <button className="link-btn" onClick={() => restoreGroup(group.id)}>Restore</button>
+                </li>
+              ))}
+            </ul>
+            <p className="dismissed-note">All contacts in these groups are kept in the exported CSV.</p>
+          </div>
+        )}
+
         {result.groups.length > 0 && (
-          <button className="scan-btn" onClick={() => {
-            const csv = exportCleanedCSV(result.groups, result.uniqueContacts, contacts)
-            downloadFile(csv, 'hubspot-contacts-deduplicated.csv')
-          }}>
-            Download Cleaned CSV
-          </button>
+          <>
+            <p className="export-summary">
+              Export keeps <strong>{rowsAfterCleanup}</strong> of {result.total} contacts
+              {rowsRemoved > 0 ? <> · removes {rowsRemoved} duplicate row{rowsRemoved === 1 ? '' : 's'}</> : ' · nothing removed'}
+            </p>
+            <button className="scan-btn" onClick={() => {
+              const csv = exportCleanedCSV(
+                activeGroups,
+                [...result.uniqueContacts, ...keptFromDismissed],
+                contacts,
+              )
+              downloadFile(csv, 'hubspot-contacts-deduplicated.csv')
+            }}>
+              Download Cleaned CSV
+            </button>
+          </>
         )}
 
         <button className="back-btn" onClick={() => setStep('upload')}>← Upload another file</button>
