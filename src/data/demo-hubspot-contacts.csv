@@ -1,0 +1,16 @@
+Email,First Name,Last Name,Phone Number,Company Name,Lifecycle Stage,Create Date
+john@acme.com,John,Smith,+1-555-0101,Acme Corp,Customer,2024-01-15
+john.smith@acme.com,John,Smith,,ACME Corporation,Lead,2024-03-22
+jane@widgetco.com,Jane,Doe,+1-555-0102,Widget Co,Customer,2024-02-10
+jane.d@widgetco.com,Jane,Doe,+1-555-0103,Widget Company,Lead,2024-04-05
+bob@global.com,Bob,Johnson,+1-555-0104,Global Inc,Customer,2024-01-20
+robert@global.com,Robert,Johnson,+1-555-0105,Global Inc,Subscriber,2024-05-12
+alice@example.com,Alice,Williams,,Example LLC,Customer,2024-06-01
+alicia@example.com,Alicia,Williams,+1-555-0106,Example Ltd,Lead,2024-06-15
+charlie@test.com,Charlie,Brown,+1-555-0107,Test Corp,Customer,2024-03-01
+charlie@test.com,Charlie,Brown,+1-555-0108,Test Corporation,Lead,2024-07-01
+david@startup.com,David,Lee,+1-555-0109,StartupXYZ,Customer,2024-04-15
+david.lee@startup.com,David,Lee,,Startup XYZ,Subscriber,2024-05-20
+emma@tech.com,Emma,Davis,+1-555-0110,Tech Solutions,Customer,2024-02-28
+emma@tech.com,Emma,,+1-555-0111,,Lead,2024-06-30
+frank@corp.com,Frank,Miller,+1-555-0112,Corporate Inc,Customer,2024-01-05
