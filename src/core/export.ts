@@ -14,9 +14,10 @@ export function exportCleanedCSV(groups: DuplicateGroup[], uniqueContacts: Conta
   const headers = [...headerSet]
 
   const sanitize = (v: string): string => {
-    // Prevent CSV formula injection (CWE-1236): values starting with
-    // =, +, -, @, tab, or carriage-return trigger Excel formula execution.
-    if (/^[=+\-@\t\r]/.test(v)) return `'${v}`
+    // Prevent CSV formula injection (CWE-1236) but exempt phone/numeric values.
+    if (/^=/.test(v)) return `'${v}`
+    if (/^[@\t\r]/.test(v)) return `'${v}`
+    if (/^[+-]/.test(v) && !/^[+-]?[\d\s().-]+$/.test(v)) return `'${v}`
     return v
   }
 

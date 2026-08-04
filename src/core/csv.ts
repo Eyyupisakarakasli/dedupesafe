@@ -87,8 +87,8 @@ export function normalizeContacts(rows: Record<string, string>[], mapping: Colum
   return rows.map((row, index) => {
     const contact: Contact = {
       email: (mapping.email ? row[mapping.email] ?? '' : '').trim().toLowerCase(),
-      firstName: (mapping.firstName ? row[mapping.firstName] ?? '' : '').trim().toLowerCase(),
-      lastName: (mapping.lastName ? row[mapping.lastName] ?? '' : '').trim().toLowerCase(),
+      firstName: (mapping.firstName ? row[mapping.firstName] ?? '' : '').trim(),
+      lastName: (mapping.lastName ? row[mapping.lastName] ?? '' : '').trim(),
       phone: (mapping.phone ? row[mapping.phone] ?? '' : '').replace(/[^0-9+]/g, ''),
       company: (mapping.company ? row[mapping.company] ?? '' : '').trim().toLowerCase(),
       raw: row,

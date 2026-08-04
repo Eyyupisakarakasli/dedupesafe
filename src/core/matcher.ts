@@ -2,6 +2,8 @@ import type { Contact, DedupeField, DuplicateGroup, SimilarityResult } from './t
 
 export function jaroWinkler(a: string, b: string): number {
   if (!a || !b) return 0
+  a = a.toLowerCase()
+  b = b.toLowerCase()
   if (a === b) return 1
 
   const aLen = a.length
@@ -63,10 +65,12 @@ function emailSimilarity(a: string, b: string): number {
 
   // Same domain + similar local-part (typical for name variants)
   if (domainA === domainB) {
-    // Dot-separated prefix: john.smith → john matches john
     const prefixA = localA.split('.')[0]
     const prefixB = localB.split('.')[0]
-    if (prefixA === prefixB) return 0.85
+
+    // One side's full local-part equals the other's dot-prefix
+    // e.g. john@ ≈ john.smith@ (same person), but john.smith@ ≠ john.doe@
+    if (localA === prefixB || localB === prefixA) return 0.85
 
     // Dot/hyphen/underscore-stripped equality
     if (localA.replace(/[._-]/g, '') === localB.replace(/[._-]/g, '')) return 0.85
