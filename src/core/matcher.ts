@@ -257,12 +257,100 @@ function identifierStrength(a: Contact, b: Contact): number {
   return 0
 }
 
+/**
+ * Common short forms. A nickname is not proof of identity — it only ever feeds
+ * the review tier, never an automatic merge.
+ */
+const NICKNAME_GROUPS: string[][] = [
+  ['robert', 'rob', 'bob', 'bobby', 'robbie'],
+  ['william', 'will', 'bill', 'billy', 'liam'],
+  ['richard', 'rich', 'rick', 'dick', 'ricky'],
+  ['james', 'jim', 'jimmy', 'jamie'],
+  ['john', 'jon', 'johnny', 'jack'],
+  ['michael', 'mike', 'mick', 'mikey'],
+  ['charles', 'charlie', 'chuck', 'chas'],
+  ['thomas', 'tom', 'tommy'],
+  ['joseph', 'joe', 'joey'],
+  ['daniel', 'dan', 'danny'],
+  ['matthew', 'matt', 'matty'],
+  ['christopher', 'chris', 'kit'],
+  ['anthony', 'tony'],
+  ['nicholas', 'nick', 'nicky'],
+  ['edward', 'ed', 'eddie', 'ted', 'teddy'],
+  ['katherine', 'catherine', 'kate', 'katie', 'kathy', 'cathy'],
+  ['elizabeth', 'liz', 'beth', 'betty', 'eliza', 'lisa'],
+  ['margaret', 'maggie', 'meg', 'peggy'],
+  ['patricia', 'pat', 'patty', 'tricia'],
+  ['jennifer', 'jen', 'jenny'],
+  ['susan', 'sue', 'susie'],
+  ['deborah', 'deb', 'debbie'],
+  ['alexander', 'alex', 'sasha', 'sandy'],
+  ['alexandra', 'alex', 'sandra', 'sasha'],
+  ['stephen', 'steven', 'steve'],
+  ['andrew', 'andy', 'drew'],
+  ['benjamin', 'ben', 'benny'],
+  ['samuel', 'sam', 'sammy'],
+  ['mehmet', 'memo', 'memet'],
+  ['mustafa', 'mustu'],
+  ['ibrahim', 'ibo'],
+  ['huseyin', 'huso'],
+  ['abdullah', 'apo'],
+  ['suleyman', 'sulo'],
+  ['muhammed', 'muhammet', 'mehmet'],
+]
+
+const NICKNAME_INDEX: ReadonlyMap<string, ReadonlySet<string>> = (() => {
+  const map = new Map<string, Set<string>>()
+  for (const group of NICKNAME_GROUPS) {
+    for (const name of group) {
+      let set = map.get(name)
+      if (!set) { set = new Set(); map.set(name, set) }
+      for (const other of group) if (other !== name) set.add(other)
+    }
+  }
+  return map
+})()
+
+function isNicknameOf(a: string, b: string): boolean {
+  return NICKNAME_INDEX.get(a.toLowerCase())?.has(b.toLowerCase()) ?? false
+}
+
 /** Evidence that two rows are definitely different people. */
 function hasConflict(a: Contact, b: Contact): boolean {
   // Two known, clearly different surnames. Catches shared inboxes (info@) and
   // colleagues sharing a switchboard number.
   if (a.lastName && b.lastName && jaroWinkler(a.lastName, b.lastName) < SIM_FLOOR) return true
   return false
+}
+
+/**
+ * A pair with no shared identifier but strong enough name evidence to be worth
+ * a human glance: same surname, a related first name, and a shared employer or
+ * mail domain. These are surfaced separately and are never removed from the
+ * export unless the user confirms them.
+ */
+export function isReviewCandidate(a: Contact, b: Contact): boolean {
+  if (identifierStrength(a, b) > 0) return false
+  if (!a.lastName || !b.lastName || !a.firstName || !b.firstName) return false
+  // The surname must match outright. Allowing near-misses here surfaced pairs
+  // like "Ahmet Arslan" / "Ahmet Aslan", which are two ordinary surnames one
+  // letter apart, and buried the real nickname matches in noise.
+  if (a.lastName.toLowerCase() !== b.lastName.toLowerCase()) return false
+
+  // A known short form, or a spelling variant. The 0.92 bar leans on the
+  // Jaro-Winkler prefix bonus: "mehmet"/"mehmed" differ at the end and pass,
+  // while "selin"/"pelin" differ at the start and are two different names.
+  const firstRelated =
+    isNicknameOf(a.firstName, b.firstName) ||
+    jaroWinkler(a.firstName, b.firstName) >= 0.92
+  if (!firstRelated) return false
+
+  const [, domainA] = a.email ? splitEmail(a.email) : ['', '']
+  const [, domainB] = b.email ? splitEmail(b.email) : ['', '']
+  const sharedDomain = Boolean(domainA) && domainA === domainB
+  const sharedCompany = Boolean(a.company) && Boolean(b.company) &&
+    companySimilarity(a.company, b.company) >= 0.9
+  return sharedDomain || sharedCompany
 }
 
 export function compareContacts(a: Contact, b: Contact): SimilarityResult {
@@ -338,12 +426,16 @@ function findMasterContact(contacts: Contact[]): Contact {
 }
 
 /**
- * Blocking keys. Every rule in identifierStrength() has a matching key here, so
- * any pair that could possibly link shares at least one bucket. Keys are kept
- * narrow — a bucket per domain would put every gmail.com contact in one list.
+ * Blocking keys, one set to index by and one to probe with. They are usually the
+ * same, but the "bare handle meets first.last" rule is one-directional: a bare
+ * handle probes the structured bucket and vice versa. Keying both sides the same
+ * way would rebuild the bucket that dominated the whole scan — every
+ * `first.last@gmail.com` sharing a first name landed in one list.
  */
-function blockingKeys(c: Contact): string[] {
-  const keys: string[] = []
+function blockingKeys(c: Contact): { index: string[]; probe: string[] } {
+  const index: string[] = []
+  const probe: string[] = []
+  const both = (k: string) => { index.push(k); probe.push(k) }
 
   if (c.email) {
     const [local, domain] = splitEmail(c.email)
@@ -352,65 +444,53 @@ function blockingKeys(c: Contact): string[] {
       const comps = localComponents(local)
 
       // Exact address, +tag variants and punctuation-only variants.
-      keys.push(`f:${domain}|${base.replace(/[._-]/g, '')}`)
+      both(`f:${domain}|${base.replace(/[._-]/g, '')}`)
       // Same handle at another provider (work + personal).
-      keys.push(`l:${base}`)
+      both(`l:${base}`)
 
       if (comps.length > 1) {
-        // Structured local: component-compatible pairs agree on the first or the
-        // last component (an initial can only replace one of them at a time).
-        keys.push(`a:${domain}|${comps[0]}`)
-        keys.push(`z:${domain}|${comps[comps.length - 1]}`)
+        const first = comps[0]
+        const last = comps[comps.length - 1]
+        // Component-compatible locals differ in at most one component, and only
+        // by an initial. Keying on (first initial + last) and (first + last
+        // initial) catches every such pair while staying highly selective.
+        both(`k1:${domain}|${first[0]}|${last}`)
+        both(`k2:${domain}|${first}|${last[0]}`)
+        // Meet bare handles equal to our leading component.
+        index.push(`st:${domain}|${first}`)
+        probe.push(`ba:${domain}|${first}`)
       } else {
-        // Bare handle: can meet a structured local whose leading component equals it…
-        keys.push(`a:${domain}|${base}`)
-        // …or a near-identical bare handle, which shares its first character.
-        keys.push(`h:${domain}|${base[0]}`)
+        index.push(`ba:${domain}|${base}`)
+        probe.push(`st:${domain}|${base}`)
+        // Near-identical bare handles keep the first two characters.
+        both(`h:${domain}|${base.slice(0, 2)}`)
       }
     }
   }
 
   if (c.phone) {
     const digits = phoneDigits(c.phone)
-    if (digits.length >= 7) keys.push(`p:${digits.slice(-9)}`)
+    if (digits.length >= 7) both(`p:${digits.slice(-9)}`)
   }
 
-  return keys
+  // Review-tier candidates need a near-identical surname plus a shared employer
+  // or mail domain, so key on both. A 4-character surname prefix is implied by
+  // the 0.9 similarity bar.
+  if (c.lastName && c.firstName) {
+    const surname = c.lastName.slice(0, 4).toLowerCase()
+    if (c.email) {
+      const [, domain] = splitEmail(c.email)
+      if (domain) both(`rd:${domain}|${surname}`)
+    }
+    if (c.company) both(`rc:${c.company.toLowerCase()}|${surname}`)
+  }
+
+  return { index, probe }
 }
 
-export function findDuplicateGroups(
-  contacts: Contact[],
-): { groups: DuplicateGroup[]; uniqueContacts: Contact[] } {
-  if (contacts.length < 2) return { groups: [], uniqueContacts: contacts }
-
-  const buckets = new Map<string, number[]>()
-  const keysByIndex: string[][] = new Array(contacts.length)
-  for (let i = 0; i < contacts.length; i++) {
-    const keys = blockingKeys(contacts[i])
-    keysByIndex[i] = keys
-    for (const key of keys) {
-      const list = buckets.get(key)
-      if (list) list.push(i)
-      else buckets.set(key, [i])
-    }
-  }
-
-  const pairs: SimilarityResult[] = []
-  for (let i = 0; i < contacts.length; i++) {
-    const candidates = new Set<number>()
-    for (const key of keysByIndex[i]) {
-      for (const j of buckets.get(key) ?? []) if (j > i) candidates.add(j)
-    }
-    for (const j of candidates) {
-      const result = compareContacts(contacts[i], contacts[j])
-      if (result.weightedScore >= THRESHOLD) pairs.push(result)
-    }
-  }
-
-  if (pairs.length === 0) return { groups: [], uniqueContacts: contacts }
-
-  // Union-find over array positions.
-  const parent = contacts.map((_, idx) => idx)
+/** Union-find over array positions. */
+function makeUnionFind(size: number) {
+  const parent = Array.from({ length: size }, (_, i) => i)
   const find = (x: number): number => {
     while (parent[x] !== x) {
       parent[x] = parent[parent[x]]
@@ -418,7 +498,64 @@ export function findDuplicateGroups(
     }
     return x
   }
-  const union = (x: number, y: number) => { parent[find(x)] = find(y) }
+  return { find, union: (x: number, y: number) => { parent[find(x)] = find(y) } }
+}
+
+export interface ScanOptions {
+  /** Called periodically during the comparison sweep so callers can report progress. */
+  onProgress?: (done: number, total: number) => void
+}
+
+export interface ScanOutcome {
+  /** Pairs sharing a strong identifier. Safe to collapse on export. */
+  groups: DuplicateGroup[]
+  /** Name-only matches that need a human decision. Never collapsed by default. */
+  reviewGroups: DuplicateGroup[]
+  uniqueContacts: Contact[]
+}
+
+export function findDuplicateGroups(
+  contacts: Contact[],
+  options: ScanOptions = {},
+): ScanOutcome {
+  if (contacts.length < 2) return { groups: [], reviewGroups: [], uniqueContacts: contacts }
+
+  const buckets = new Map<string, number[]>()
+  const probesByIndex: string[][] = new Array(contacts.length)
+  for (let i = 0; i < contacts.length; i++) {
+    const { index, probe } = blockingKeys(contacts[i])
+    probesByIndex[i] = probe
+    for (const key of index) {
+      const list = buckets.get(key)
+      if (list) list.push(i)
+      else buckets.set(key, [i])
+    }
+  }
+
+  const pairs: SimilarityResult[] = []
+  const reviewPairs: [number, number][] = []
+  const candidates = new Set<number>()
+  const progressEvery = Math.max(256, Math.floor(contacts.length / 100))
+  for (let i = 0; i < contacts.length; i++) {
+    if (options.onProgress && i % progressEvery === 0) options.onProgress(i, contacts.length)
+    candidates.clear()
+    for (const key of probesByIndex[i]) {
+      for (const j of buckets.get(key) ?? []) if (j !== i) candidates.add(j)
+    }
+    for (const j of candidates) {
+      // Probe keys are one-directional, so order the pair rather than relying on j > i.
+      if (j < i) continue
+      const result = compareContacts(contacts[i], contacts[j])
+      if (result.weightedScore >= THRESHOLD) pairs.push(result)
+      else if (isReviewCandidate(contacts[i], contacts[j])) reviewPairs.push([i, j])
+    }
+  }
+
+  if (pairs.length === 0 && reviewPairs.length === 0) {
+    return { groups: [], reviewGroups: [], uniqueContacts: contacts }
+  }
+
+  const { find, union } = makeUnionFind(contacts.length)
 
   const posByRow = new Map<number, number>()
   for (let i = 0; i < contacts.length; i++) posByRow.set(contacts[i].rowIndex, i)
@@ -469,7 +606,42 @@ export function findDuplicateGroups(
 
   const grouped = new Set<number>()
   for (const g of groups) for (const c of g.contacts) grouped.add(c.rowIndex)
+
+  // Second pass: name-only matches, over the contacts no confirmed group claimed.
+  const reviewUf = makeUnionFind(contacts.length)
+  let reviewLinks = 0
+  for (const [i, j] of reviewPairs) {
+    if (grouped.has(contacts[i].rowIndex) || grouped.has(contacts[j].rowIndex)) continue
+    reviewUf.union(i, j)
+    reviewLinks++
+  }
+
+  const reviewGroups: DuplicateGroup[] = []
+  if (reviewLinks > 0) {
+    const membersByReviewRoot = new Map<number, number[]>()
+    for (let pos = 0; pos < contacts.length; pos++) {
+      if (grouped.has(contacts[pos].rowIndex)) continue
+      const root = reviewUf.find(pos)
+      const list = membersByReviewRoot.get(root)
+      if (list) list.push(pos)
+      else membersByReviewRoot.set(root, [pos])
+    }
+    for (const [root, members] of membersByReviewRoot) {
+      if (members.length < 2) continue
+      const contactList = members.map(pos => contacts[pos]).sort((x, y) => x.rowIndex - y.rowIndex)
+      reviewGroups.push({
+        id: `review-${root}`,
+        contacts: contactList,
+        masterContact: findMasterContact(contactList),
+        pairs: [],
+        riskScore: 0,
+        riskLevel: 'review',
+      })
+    }
+    for (const g of reviewGroups) for (const c of g.contacts) grouped.add(c.rowIndex)
+  }
+
   const uniqueContacts = contacts.filter(c => !grouped.has(c.rowIndex))
 
-  return { groups, uniqueContacts }
+  return { groups, reviewGroups, uniqueContacts }
 }
