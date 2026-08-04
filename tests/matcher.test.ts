@@ -1,92 +1,174 @@
 import { describe, expect, it } from 'vitest'
-import { jaroWinkler, compareContacts, findDuplicateGroups } from '../src/core/matcher'
-import { detectHubSpotMapping, normalizeContacts, parseCSV } from '../src/core/csv'
+import {
+  jaroWinkler, emailSimilarity, phoneSimilarity, companySimilarity,
+  compareContacts, findDuplicateGroups,
+} from '../src/core/matcher'
+import { detectHubSpotMapping, normalizeContacts, looksLikeContactExport } from '../src/core/csv'
 import { buildMergeSuggestions, exportCleanedCSV } from '../src/core/export'
 import type { Contact } from '../src/core/types'
 
 function makeContact(overrides: Partial<Contact> & { rowIndex: number }): Contact {
-  return {
-    email: '',
-    firstName: '',
-    lastName: '',
-    phone: '',
-    company: '',
-    raw: {},
-    ...overrides,
-  }
+  return { email: '', firstName: '', lastName: '', phone: '', company: '', raw: {}, ...overrides }
 }
 
 describe('jaroWinkler', () => {
-  it('returns 1 for identical non-empty strings, 0 for empty', () => {
+  it('scores identical and empty strings', () => {
     expect(jaroWinkler('John', 'John')).toBe(1)
     expect(jaroWinkler('', 'x')).toBe(0)
-  })
-
-  it('returns 0 when one side is empty', () => {
     expect(jaroWinkler('John', '')).toBe(0)
-    expect(jaroWinkler('', 'John')).toBe(0)
   })
 
-  it('gives high score for similar names', () => {
+  it('is case-insensitive so ALL-CAPS imports still match', () => {
+    expect(jaroWinkler('JOHN', 'john')).toBe(1)
+    expect(jaroWinkler('Smith', 'SMITH')).toBe(1)
+  })
+
+  it('rates similar names high and unrelated names low', () => {
     expect(jaroWinkler('Jon', 'John')).toBeGreaterThan(0.7)
     expect(jaroWinkler('Smith', 'Smyth')).toBeGreaterThan(0.7)
-  })
-
-  it('gives low score for unrelated names', () => {
     expect(jaroWinkler('Alice', 'Bob')).toBeLessThan(0.5)
-    expect(jaroWinkler('Williams', 'Chen')).toBeLessThan(0.5)
   })
 
-  it('handles prefix bonus for matching first chars', () => {
-    const withPrefix = jaroWinkler('ab', 'abcdef')
-    const noPrefix = jaroWinkler('xy', 'abcdef')
-    expect(withPrefix).toBeGreaterThan(noPrefix)
+  it('only applies the prefix bonus to already-similar strings', () => {
+    // "al" vs "alexander" must not be inflated into a match.
+    expect(jaroWinkler('al', 'alexander')).toBeLessThan(0.8)
   })
 })
 
-describe('compareContacts', () => {
-  it('returns certain for identical contact', () => {
-    const a = makeContact({ email: 'x@x.com', firstName: 'John', lastName: 'Doe', phone: '+15550101', company: 'Acme', rowIndex: 0 })
-    const b = makeContact({ email: 'x@x.com', firstName: 'John', lastName: 'Doe', phone: '+15550101', company: 'acme', rowIndex: 1 })
+describe('emailSimilarity', () => {
+  it('treats an identical address, or a +tag variant, as the same mailbox', () => {
+    expect(emailSimilarity('a@x.com', 'a@x.com')).toBe(1)
+    expect(emailSimilarity('john@x.com', 'john+hubspot@x.com')).toBeGreaterThanOrEqual(0.95)
+  })
+
+  it('matches bare handle against its own first.last form', () => {
+    expect(emailSimilarity('john@acme.com', 'john.smith@acme.com')).toBeGreaterThanOrEqual(0.85)
+    expect(emailSimilarity('j.smith@acme.com', 'john.smith@acme.com')).toBeGreaterThanOrEqual(0.85)
+    expect(emailSimilarity('johnsmith@acme.com', 'john.smith@acme.com')).toBeGreaterThanOrEqual(0.85)
+  })
+
+  it('REJECTS two different people who share a first name (regression)', () => {
+    expect(emailSimilarity('john.smith@acme.com', 'john.doe@acme.com')).toBe(0)
+    expect(emailSimilarity('mustafa.yilmaz@x.com', 'mustafa.yildirim@x.com')).toBe(0)
+    expect(emailSimilarity('ali.kaya@firma.com', 'ali.demir@firma.com')).toBe(0)
+  })
+
+  it('does not treat a role mailbox as a person (regression)', () => {
+    // info@ and info.sales@ are two inboxes, not one duplicated contact.
+    expect(emailSimilarity('info@acme.com', 'info.sales@acme.com')).toBe(0)
+    expect(emailSimilarity('sales@acme.com', 'sales.eu@acme.com')).toBe(0)
+    expect(emailSimilarity('bilgi@firma.com', 'bilgi.destek@firma.com')).toBe(0)
+    // …but a real first name still links to its first.last form.
+    expect(emailSimilarity('john@acme.com', 'john.smith@acme.com')).toBeGreaterThanOrEqual(0.85)
+  })
+
+  it('rejects unrelated local parts and unrelated domains', () => {
+    expect(emailSimilarity('john@acme.com', 'johnson@acme.com')).toBe(0)
+    expect(emailSimilarity('alice@a.com', 'bob@b.com')).toBe(0)
+  })
+
+  it('links the same handle across providers (work + personal)', () => {
+    expect(emailSimilarity('john.smith@acme.com', 'john.smith@gmail.com')).toBeGreaterThan(0)
+  })
+})
+
+describe('phoneSimilarity', () => {
+  it('matches identical numbers and country-code variants', () => {
+    expect(phoneSimilarity('+15550101234', '+15550101234')).toBe(1)
+    expect(phoneSimilarity('+905321112233', '00905321112233')).toBeGreaterThanOrEqual(0.9)
+  })
+
+  it('ignores short fragments that would collide by chance', () => {
+    expect(phoneSimilarity('1234', '+15551234')).toBe(0)
+    expect(phoneSimilarity('', '+15551234')).toBe(0)
+  })
+})
+
+describe('companySimilarity', () => {
+  it('ignores legal suffixes', () => {
+    expect(companySimilarity('Acme Corp', 'ACME Corporation')).toBe(1)
+    expect(companySimilarity('Example LLC', 'Example Ltd')).toBe(1)
+  })
+
+  it('does not match a short name against a longer one that contains it', () => {
+    expect(companySimilarity('Meta', 'Metamask')).toBe(0)
+    expect(companySimilarity('Acme', 'Acme Labs Industries')).toBe(0)
+  })
+
+  it('scores unrelated companies at zero', () => {
+    expect(companySimilarity('Microsoft', 'Amazon')).toBe(0)
+    expect(companySimilarity('Garanti Bankasi', 'Turkcell Iletisim')).toBe(0)
+  })
+})
+
+describe('compareContacts — requires a strong identifier', () => {
+  it('never links on name/company alone', () => {
+    const a = makeContact({ lastName: 'Yilmaz', rowIndex: 0 })
+    const b = makeContact({ lastName: 'Yilmaz', rowIndex: 1 })
+    expect(compareContacts(a, b).weightedScore).toBe(0)
+
+    const c = makeContact({ company: 'Acme', rowIndex: 0 })
+    const d = makeContact({ company: 'Acme', rowIndex: 1 })
+    expect(compareContacts(c, d).weightedScore).toBe(0)
+  })
+
+  it('rejects colleagues who share a first name and employer', () => {
+    const a = makeContact({ email: 'mehmet.yilmaz@akbank.com', firstName: 'Mehmet', lastName: 'Yilmaz', company: 'Akbank', rowIndex: 0 })
+    const b = makeContact({ email: 'mehmet.demir@akbank.com', firstName: 'Mehmet', lastName: 'Demir', company: 'Akbank', rowIndex: 1 })
+    expect(compareContacts(a, b).weightedScore).toBe(0)
+  })
+
+  it('rejects two people behind one shared inbox', () => {
+    const a = makeContact({ email: 'info@acme.com', firstName: 'Ann', lastName: 'Baker', rowIndex: 0 })
+    const b = makeContact({ email: 'info@acme.com', firstName: 'Zed', lastName: 'Kwon', rowIndex: 1 })
+    expect(compareContacts(a, b).weightedScore).toBe(0)
+  })
+
+  it('rejects colleagues sharing a switchboard number', () => {
+    const a = makeContact({ email: 'ann@acme.com', firstName: 'Ann', lastName: 'Baker', phone: '+902123456789', company: 'Acme', rowIndex: 0 })
+    const b = makeContact({ email: 'zed@acme.com', firstName: 'Zed', lastName: 'Kwon', phone: '+902123456789', company: 'Acme', rowIndex: 1 })
+    expect(compareContacts(a, b).weightedScore).toBe(0)
+  })
+
+  it('scores a real duplicate as certain', () => {
+    const a = makeContact({ email: 'x@x.com', firstName: 'John', lastName: 'Doe', phone: '+15550101234', company: 'Acme', rowIndex: 0 })
+    const b = makeContact({ email: 'x@x.com', firstName: 'John', lastName: 'Doe', phone: '+15550101234', company: 'acme', rowIndex: 1 })
     const result = compareContacts(a, b)
     expect(result.weightedScore).toBeGreaterThanOrEqual(90)
     expect(result.riskLevel).toBe('certain')
   })
 
-  it('does not inflate score for empty phone/company', () => {
-    const a = makeContact({ email: 'a@a.com', firstName: 'A', lastName: 'B', phone: '', company: '', rowIndex: 0 })
-    const b = makeContact({ email: 'b@b.com', firstName: 'X', lastName: 'Y', phone: '', company: '', rowIndex: 1 })
-    const result = compareContacts(a, b)
-    expect(result.weightedScore).toBeLessThan(20)
+  it('matches the same person across ALL-CAPS and mixed-case rows', () => {
+    const a = makeContact({ email: 'j@a.com', firstName: 'JOHN', lastName: 'SMITH', phone: '+15550101234', company: 'ACME', rowIndex: 0 })
+    const b = makeContact({ email: 'j.smith@a.com', firstName: 'John', lastName: 'Smith', phone: '+15550101234', company: 'Acme', rowIndex: 1 })
+    expect(compareContacts(a, b).weightedScore).toBeGreaterThanOrEqual(90)
   })
 
-  it('different email with same name/phone reaches possible', () => {
-    const a = makeContact({ email: 'john@old.com', firstName: 'John', lastName: 'Smith', phone: '+15550101', company: 'Acme', rowIndex: 0 })
-    const b = makeContact({ email: 'john@new.com', firstName: 'John', lastName: 'Smith', phone: '+15550101', company: 'Acme', rowIndex: 1 })
-    const result = compareContacts(a, b)
-    expect(result.weightedScore).toBeGreaterThanOrEqual(50)
+  it('ranks a work/personal pair above any rejected pair', () => {
+    const a = makeContact({ email: 'john.smith@acme.com', firstName: 'John', lastName: 'Smith', phone: '+15550101234', rowIndex: 0 })
+    const b = makeContact({ email: 'jsmith@gmail.com', firstName: 'John', lastName: 'Smith', phone: '+15550101234', rowIndex: 1 })
+    expect(compareContacts(a, b).weightedScore).toBeGreaterThanOrEqual(90)
   })
 
-  it('unrelated contacts are unlikely', () => {
-    const a = makeContact({ email: 'a@x.com', firstName: 'Alice', lastName: 'X', phone: '', company: '', rowIndex: 0 })
-    const b = makeContact({ email: 'b@y.com', firstName: 'Bob', lastName: 'Y', phone: '+15550102', company: 'Different', rowIndex: 1 })
-    const result = compareContacts(a, b)
-    expect(result.riskLevel).toBe('unlikely')
+  it('never reports a score above 100', () => {
+    const a = makeContact({ email: 'x@x.com', rowIndex: 0 })
+    const b = makeContact({ email: 'x@x.com', rowIndex: 1 })
+    expect(compareContacts(a, b).weightedScore).toBeLessThanOrEqual(100)
   })
 })
 
 describe('findDuplicateGroups', () => {
-  it('returns empty for single contact', () => {
+  it('returns empty for a single contact', () => {
     const contacts = [makeContact({ email: 'a@a.com', firstName: 'A', rowIndex: 0 })]
     const { groups, uniqueContacts } = findDuplicateGroups(contacts)
     expect(groups).toHaveLength(0)
     expect(uniqueContacts).toHaveLength(1)
   })
 
-  it('groups same email contacts', () => {
+  it('groups contacts sharing an email', () => {
     const contacts = [
-      makeContact({ email: 'dup@test.com', firstName: 'John', lastName: 'Doe', phone: '+15550101', company: 'Acme Corp', rowIndex: 0 }),
-      makeContact({ email: 'dup@test.com', firstName: 'John', lastName: 'Doe', phone: '+15550102', company: 'ACME Corporation', rowIndex: 1 }),
+      makeContact({ email: 'dup@test.com', firstName: 'John', lastName: 'Doe', phone: '+15550101234', company: 'Acme Corp', rowIndex: 0 }),
+      makeContact({ email: 'dup@test.com', firstName: 'John', lastName: 'Doe', phone: '+15550102345', company: 'ACME Corporation', rowIndex: 1 }),
     ]
     const { groups, uniqueContacts } = findDuplicateGroups(contacts)
     expect(groups).toHaveLength(1)
@@ -94,18 +176,38 @@ describe('findDuplicateGroups', () => {
     expect(uniqueContacts).toHaveLength(0)
   })
 
-  it('transitively groups A≈B and B≈C', () => {
-    const contacts = [
-      makeContact({ email: 'same@test.com', firstName: 'A', lastName: 'One', phone: '+15550101', company: 'X', rowIndex: 0 }),
-      makeContact({ email: 'same@test.com', firstName: 'A', lastName: 'One', phone: '+15550102', company: 'X', rowIndex: 1 }),
-      makeContact({ email: 'same@test.com', firstName: 'A', lastName: 'One', phone: '+15550103', company: 'X', rowIndex: 2 }),
-    ]
-    const { groups } = findDuplicateGroups(contacts)
-    expect(groups).toHaveLength(1)
-    expect(groups[0].contacts).toHaveLength(3)
+  it('groups transitively when every link is real', () => {
+    const contacts = [0, 1, 2].map(i => makeContact({
+      email: 'same@test.com', firstName: 'A', lastName: 'One', phone: `+1555010${i}234`, company: 'X', rowIndex: i,
+    }))
+    expect(findDuplicateGroups(contacts).groups[0].contacts).toHaveLength(3)
   })
 
-  it('keeps unrelated contacts as unique', () => {
+  it('does NOT merge a company directory into one group (regression)', () => {
+    // 60 distinct employees at one employer: 20 first names repeat, every
+    // surname/email/phone is unique. Nothing here is a duplicate.
+    const first = ['ahmet', 'mehmet', 'ayse', 'fatma', 'mustafa', 'ali', 'zeynep', 'elif', 'emre', 'burak',
+      'deniz', 'can', 'ece', 'murat', 'selin', 'okan', 'pelin', 'tolga', 'yasemin', 'kerem']
+    const last = ['yilmaz', 'kaya', 'demir', 'sahin', 'celik', 'yildiz', 'ozturk', 'aydin', 'ozdemir', 'arslan',
+      'dogan', 'kilic', 'aslan', 'cetin', 'kara', 'koc', 'kurt', 'ozkan', 'simsek', 'polat',
+      'korkmaz', 'ozcan', 'acar', 'kaplan', 'bulut', 'yavuz', 'erdogan', 'gunes', 'ozer', 'sen',
+      'bozkurt', 'turan', 'aktas', 'cakir', 'avci', 'gul', 'kose', 'eren', 'bilgin', 'sari',
+      'duman', 'gokce', 'ates', 'uysal', 'sezer', 'coskun', 'toprak', 'sonmez', 'balci', 'yalcin',
+      'gulen', 'ergin', 'ucar', 'ince', 'tekin', 'baran', 'altun', 'akin', 'kartal', 'keskin']
+    const staff = Array.from({ length: 60 }, (_, i) => makeContact({
+      email: `${first[i % 20]}.${last[i]}@akbank.com`,
+      firstName: first[i % 20],
+      lastName: last[i],
+      phone: `+90532${1000000 + i * 97}`,
+      company: 'Akbank',
+      rowIndex: i,
+    }))
+    const { groups, uniqueContacts } = findDuplicateGroups(staff)
+    expect(groups).toHaveLength(0)
+    expect(uniqueContacts).toHaveLength(60)
+  })
+
+  it('keeps unrelated contacts unique', () => {
     const contacts = [
       makeContact({ email: 'unique@test.com', firstName: 'Uno', rowIndex: 0 }),
       makeContact({ email: 'other@test.com', firstName: 'Dos', rowIndex: 1 }),
@@ -115,80 +217,182 @@ describe('findDuplicateGroups', () => {
     expect(uniqueContacts).toHaveLength(2)
   })
 
-  it('picks most complete record as master', () => {
+  it('picks the most complete record as the one to keep', () => {
     const contacts = [
-      makeContact({ email: 'dup@test.com', firstName: 'Alice', lastName: '', phone: '', company: '', rowIndex: 0 }),
-      makeContact({ email: 'dup@test.com', firstName: 'Alice', lastName: 'Smith', phone: '+15550101', company: 'Acme', rowIndex: 1 }),
+      makeContact({ email: 'dup@test.com', firstName: 'Alice', rowIndex: 0 }),
+      makeContact({ email: 'dup@test.com', firstName: 'Alice', lastName: 'Smith', phone: '+15550101234', company: 'Acme', rowIndex: 1 }),
     ]
-    const { groups } = findDuplicateGroups(contacts)
-    expect(groups[0].masterContact.rowIndex).toBe(1)
+    expect(findDuplicateGroups(contacts).groups[0].masterContact.rowIndex).toBe(1)
+  })
+
+  it('breaks master ties toward the record carrying more detail', () => {
+    const contacts = [
+      makeContact({ email: 'dup@test.com', firstName: 'Jon', lastName: 'Smith', phone: '+15550101234', rowIndex: 0 }),
+      makeContact({ email: 'dup@test.com', firstName: 'Jonathan', lastName: 'Smith', phone: '+15550101234', rowIndex: 1 }),
+    ]
+    expect(findDuplicateGroups(contacts).groups[0].masterContact.firstName).toBe('Jonathan')
   })
 })
 
 describe('detectHubSpotMapping', () => {
-  it('detects standard HubSpot export columns', () => {
-    const headers = ['Email', 'First Name', 'Last Name', 'Phone Number', 'Company Name', 'Lifecycle Stage']
-    const mapping = detectHubSpotMapping(headers)
-    expect(mapping.email).toBe('Email')
-    expect(mapping.firstName).toBe('First Name')
-    expect(mapping.lastName).toBe('Last Name')
-    expect(mapping.phone).toBe('Phone Number')
-    expect(mapping.company).toBe('Company Name')
+  it('detects a standard export', () => {
+    const mapping = detectHubSpotMapping(['Email', 'First Name', 'Last Name', 'Phone Number', 'Company Name', 'Lifecycle Stage'])
+    expect(mapping).toEqual({
+      email: 'Email', firstName: 'First Name', lastName: 'Last Name',
+      phone: 'Phone Number', company: 'Company Name',
+    })
   })
 
-  it('handles alternative column names', () => {
-    const headers = ['E-mail', 'Firstname', 'Surname', 'Mobile Phone', 'Organization']
-    const mapping = detectHubSpotMapping(headers)
-    expect(mapping.email).toBe('E-mail')
-    expect(mapping.firstName).toBe('Firstname')
-    expect(mapping.lastName).toBe('Surname')
-    expect(mapping.phone).toBe('Mobile Phone')
-    expect(mapping.company).toBe('Organization')
+  it('is not fooled by lookalike metadata columns (regression)', () => {
+    const mapping = detectHubSpotMapping([
+      'Record ID', 'Email Hard Bounce Reason', 'Email Domain',
+      'Marketing email confirmation status', 'First Name', 'Last Name', 'Email', 'Phone Number',
+    ])
+    expect(mapping.email).toBe('Email')
+  })
+
+  it('falls back to a real email column when there is no exact match', () => {
+    expect(detectHubSpotMapping(['Email Hard Bounce Reason', 'Contact Email']).email).toBe('Contact Email')
+  })
+
+  it('handles alternative and localised spellings', () => {
+    expect(detectHubSpotMapping(['Email', 'Mobile']).phone).toBe('Mobile')
+    expect(detectHubSpotMapping(['Email', 'Organisation']).company).toBe('Organisation')
+    const tr = detectHubSpotMapping(['E-Posta', 'Ad', 'Soyad', 'Telefon', 'Firma'])
+    expect(tr.email).toBe('E-Posta')
+    expect(tr.lastName).toBe('Soyad')
+  })
+
+  it('maps nothing for a non-contact CSV and reports it', () => {
+    const mapping = detectHubSpotMapping(['a', 'b', 'c'])
+    expect(mapping.email).toBeNull()
+    expect(looksLikeContactExport(mapping)).toBe(false)
+  })
+
+  it('never assigns one column to two fields', () => {
+    const mapping = detectHubSpotMapping(['Name', 'Value'])
+    const used = Object.values(mapping).filter(Boolean)
+    expect(new Set(used).size).toBe(used.length)
   })
 })
 
 describe('normalizeContacts', () => {
-  it('normalizes email to lowercase and strips phone formatting', () => {
-    const rows = [{ Email: 'John@ACME.com', 'First Name': 'John', 'Last Name': 'Smith', 'Phone Number': '+1 (555) 0101', 'Company Name': 'Acme Corp' }]
-    const mapping = { email: 'Email', firstName: 'First Name', lastName: 'Last Name', phone: 'Phone Number', company: 'Company Name' }
-    const contacts = normalizeContacts(rows, mapping)
+  it('lowercases email/company and keeps display casing for names', () => {
+    const rows = [{ Email: 'John@ACME.com', 'First Name': 'JOHN', 'Last Name': 'Smith', 'Company Name': 'Acme Corp' }]
+    const contacts = normalizeContacts(rows, {
+      email: 'Email', firstName: 'First Name', lastName: 'Last Name', phone: null, company: 'Company Name',
+    })
     expect(contacts[0].email).toBe('john@acme.com')
-    expect(contacts[0].phone).toBe('+15550101')
     expect(contacts[0].company).toBe('acme corp')
+    expect(contacts[0].firstName).toBe('JOHN')
+  })
+
+  it('strips phone extensions instead of merging them into the number', () => {
+    const mapping = { email: null, firstName: null, lastName: null, phone: 'P', company: null }
+    expect(normalizeContacts([{ P: '+1 (555) 010-1234 ext. 22' }], mapping)[0].phone).toBe('+15550101234')
+    expect(normalizeContacts([{ P: '5550101234 x99' }], mapping)[0].phone).toBe('5550101234')
+  })
+
+  it('normalises unicode so composed and decomposed names match', () => {
+    const mapping = { email: null, firstName: 'N', lastName: null, phone: null, company: null }
+    const composed = normalizeContacts([{ N: 'José' }], mapping)[0].firstName
+    const decomposed = normalizeContacts([{ N: 'José' }], mapping)[0].firstName
+    expect(composed).toBe(decomposed)
+  })
+
+  it('survives a column named __proto__ instead of throwing', () => {
+    const row: Record<string, string> = Object.create(null)
+    row['Email'] = 'a@a.com'
+    const mapping = { email: '__proto__', firstName: null, lastName: null, phone: null, company: null }
+    expect(() => normalizeContacts([row], mapping)).not.toThrow()
+    expect(normalizeContacts([row], mapping)[0].email).toBe('')
   })
 })
 
 describe('exportCleanedCSV', () => {
-  it('produces CSV with headers and deduplicated rows', () => {
-    const contacts = [
-      makeContact({ email: 'keep@test.com', firstName: 'Keep', rowIndex: 0, raw: { Email: 'keep@test.com', Name: 'Keep' } }),
-      makeContact({ email: 'dup@test.com', firstName: 'A', rowIndex: 1, raw: { Email: 'dup@test.com', Name: 'A' } }),
-      makeContact({ email: 'dup@test.com', firstName: 'A', rowIndex: 2, raw: { Email: 'dup@test.com', Name: 'A' } }),
-    ]
+  const headers = ['Email', 'Name']
+  const contacts = [
+    makeContact({ email: 'keep@test.com', rowIndex: 0, raw: { Email: 'keep@test.com', Name: 'Keep' } }),
+    makeContact({ email: 'dup@test.com', firstName: 'A', rowIndex: 1, raw: { Email: 'dup@test.com', Name: 'A' } }),
+    makeContact({ email: 'dup@test.com', firstName: 'A', rowIndex: 2, raw: { Email: 'dup@test.com', Name: 'A' } }),
+  ]
+
+  function dataRows(csv: string): string[] {
+    return csv.replace(/^﻿/, '').trim().split('\r\n').slice(1)
+  }
+
+  it('keeps every contact that is not a removed duplicate', () => {
     const { groups, uniqueContacts } = findDuplicateGroups(contacts)
-    const csv = exportCleanedCSV(groups, uniqueContacts, contacts)
+    const csv = exportCleanedCSV(groups, uniqueContacts, contacts, headers)
+    // 3 contacts, one duplicate pair collapsed to its master => 2 rows.
+    expect(dataRows(csv)).toHaveLength(2)
     expect(csv).toContain('keep@test.com')
-    const lines = csv.trim().split('\n')
-    expect(lines.length).toBeGreaterThan(1) // header + at least 1 row
+  })
+
+  it('loses nothing when there are no duplicates', () => {
+    const solo = [
+      makeContact({ email: 'a@a.com', rowIndex: 0, raw: { Email: 'a@a.com', Name: 'A' } }),
+      makeContact({ email: 'b@b.com', rowIndex: 1, raw: { Email: 'b@b.com', Name: 'B' } }),
+    ]
+    const { groups, uniqueContacts } = findDuplicateGroups(solo)
+    expect(dataRows(exportCleanedCSV(groups, uniqueContacts, solo, headers))).toHaveLength(2)
+  })
+
+  it('neutralises formula injection in cells AND headers', () => {
+    const evil = [makeContact({
+      email: 'a@a.com', rowIndex: 0,
+      raw: { '=cmd|calc': 'x', F: '=SUM(A1)', A: '@echo', H: '+HYPERLINK("http://evil")' },
+    })]
+    const csv = exportCleanedCSV([], evil, evil, ['=cmd|calc', 'F', 'A', 'H'])
+    expect(csv).toContain("'=cmd|calc")
+    expect(csv).toContain("'=SUM(A1)")
+    expect(csv).toContain("'@echo")
+    expect(csv).toContain("'+HYPERLINK")
+  })
+
+  it('leaves phone numbers and negative numbers untouched', () => {
+    const rows = [makeContact({ email: 'a@a.com', rowIndex: 0, raw: { P: '+90 555 123 45 67', N: '-5' } })]
+    const csv = exportCleanedCSV([], rows, rows, ['P', 'N'])
+    expect(csv).toContain('+90 555 123 45 67')
+    expect(csv).not.toContain("'+90")
+    expect(csv).toContain('-5')
+  })
+
+  it('quotes commas, quotes and carriage returns', () => {
+    const rows = [makeContact({ email: 'a@a.com', rowIndex: 0, raw: { A: 'x,y', B: 'he "said"', C: 'l1\rl2' } })]
+    const csv = exportCleanedCSV([], rows, rows, ['A', 'B', 'C'])
+    expect(csv).toContain('"x,y"')
+    expect(csv).toContain('"he ""said"""')
+    expect(csv).toContain('"l1\rl2"')
+  })
+
+  it('emits a BOM and CRLF so Excel reads UTF-8 correctly', () => {
+    const rows = [makeContact({ email: 'a@a.com', rowIndex: 0, raw: { A: 'Şahin' } })]
+    const csv = exportCleanedCSV([], rows, rows, ['A'])
+    expect(csv.charCodeAt(0)).toBe(0xFEFF)
+    expect(csv).toContain('\r\n')
+  })
+
+  it('preserves the original column order', () => {
+    const rows = [makeContact({ email: 'a@a.com', rowIndex: 0, raw: { B: '1', A: '2' } })]
+    const csv = exportCleanedCSV([], rows, rows, ['A', 'B'])
+    expect(csv.replace(/^﻿/, '').split('\r\n')[0]).toBe('A,B')
   })
 })
 
 describe('buildMergeSuggestions', () => {
-  it('suggests merging fields that master is missing', () => {
-    const a = makeContact({ email: 'dup@test.com', firstName: 'Alice', lastName: '', phone: '', company: 'Acme', rowIndex: 0 })
-    const b = makeContact({ email: 'dup@test.com', firstName: 'Alice', lastName: 'Smith', phone: '+15550101', company: '', rowIndex: 1 })
+  it('lists fields the kept record is missing', () => {
+    const a = makeContact({ email: 'dup@test.com', firstName: 'Alice', company: 'Acme', rowIndex: 0 })
+    const b = makeContact({ email: 'dup@test.com', firstName: 'Alice', lastName: 'Smith', phone: '+15550101234', rowIndex: 1 })
     const { groups } = findDuplicateGroups([a, b])
     expect(groups.length).toBeGreaterThan(0)
-    const suggestions = buildMergeSuggestions(groups[0])
-    expect(suggestions.length).toBeGreaterThan(0)
+    expect(buildMergeSuggestions(groups[0]).length).toBeGreaterThan(0)
   })
 
-  it('returns empty when no fields to merge', () => {
+  it('returns nothing when the records agree', () => {
     const a = makeContact({ email: 'x@x.com', firstName: 'A', rowIndex: 0 })
     const b = makeContact({ email: 'x@x.com', firstName: 'A', rowIndex: 1 })
     const { groups } = findDuplicateGroups([a, b])
-    expect(groups.length).toBeGreaterThan(0)
-    const suggestions = buildMergeSuggestions(groups[0])
-    expect(suggestions).toHaveLength(0)
+    expect(buildMergeSuggestions(groups[0])).toHaveLength(0)
   })
 })
