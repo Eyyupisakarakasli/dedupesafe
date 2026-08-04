@@ -51,4 +51,6 @@ export interface ParseResult {
   headers: string[]
   rows: Record<string, string>[]
   totalRows: number
+  /** Human-readable structural problems found while parsing (ragged rows, etc.). */
+  warnings: string[]
 }
