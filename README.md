@@ -67,6 +67,26 @@ otherwise everyone called Mehmet at one employer collapses into a single "duplic
 
 A **probable** identifier additionally requires at least one other field to agree.
 
+### The review tier
+
+Requiring an identifier is safe but strict: it misses `Bob Johnson` / `Robert Johnson`, who
+are plainly the same person to a human. Rather than loosen the rule and risk deleting real
+contacts, those land in a second tier:
+
+> **Needs your review** — same surname, a related first name (a known short form, or a
+> spelling variant like *Mehmet* / *Mehmed*), and the same employer or mail domain, but no
+> matching email or phone.
+
+Review groups are shown separately and **never removed from the export** unless you press
+*Same person*. So recall costs you a decision, never a contact.
+
+The bar is deliberately narrow. The surname must match exactly, because "Ahmet Arslan" and
+"Ahmet Aslan" are two ordinary surnames rather than a typo of each other. First names must
+either be a known pair (Bob/Robert, Kate/Katherine, Mehmet/Muhammet) or differ only at the
+end — *Selin* and *Pelin* differ at the start and are two different people. On a synthetic
+1,000-contact directory where everyone shares one employer and every person is distinct,
+this produces zero review groups.
+
 Two `first.last@` addresses are compared component by component, so `mustafa.yilmaz@` and
 `mustafa.yildirim@` are *different people*, while `j.smith@` and `john.smith@` are the same one.
 
@@ -106,19 +126,22 @@ from the kept one — so you can carry them over in HubSpot before deleting anyt
 ### On the demo data
 
 `src/data/demo-hubspot-contacts.csv` holds 15 contacts with 7 deliberately planted duplicate
-pairs. The matcher finds **6 of 7**. The miss is `Bob Johnson` / `Robert Johnson` — a nickname
-pair with different emails and phones, which needs a nickname dictionary to catch.
+pairs. All **7 are found**: six as confirmed duplicates, and `Bob Johnson` / `Robert Johnson`
+in the review tier. Exporting without confirming keeps 9 of 15 rows (both Johnsons); pressing
+*Same person* first makes it 8.
 
 ## Known limitations
 
 Read these before trusting the output on a real list.
 
-- **Nicknames are not matched.** Bob/Robert, Bill/William, Kate/Katherine. There is no nickname table.
-- **A duplicate with no shared email or phone will be missed.** That is the deliberate trade-off
-  behind the strong-identifier rule: the tool prefers missing a duplicate over deleting a real contact.
-- **Large files are slow.** Roughly 3 s for 10,000 contacts and about 45 s for 50,000 on a typical
-  laptop. The scan is synchronous, so the tab is unresponsive while it runs; a warning appears above
-  20,000 rows. Split very large exports.
+- **A duplicate with no shared email or phone is never merged automatically.** If the names line
+  up it appears in the review tier; otherwise it is missed. That is the deliberate trade-off: the
+  tool prefers missing a duplicate over deleting a real contact.
+- **The nickname list is English-first**, with a handful of Turkish short forms. Unusual pairs need
+  adding to `NICKNAME_GROUPS` in `matcher.ts`.
+- **Scanning is fast but not free.** About 0.3 s for 10,000 contacts and 7 s for 50,000. The scan
+  runs in a Web Worker, so the page stays responsive and can be cancelled, and a progress bar shows
+  how far it has got. Sending the rows to the worker costs roughly 0.3 s at 50,000 rows.
 - **An email column is required** to start a scan.
 - **Non-Latin company names are ignored** for scoring. Company names are reduced to Latin letters
   and digits, so a CJK/Cyrillic/Arabic-only name contributes 0 rather than a wrong score.
@@ -134,10 +157,11 @@ Read these before trusting the output on a real list.
 ```
 src/
   core/
-    matcher.ts   identifier gate, scoring, blocking, union-find grouping
-    csv.ts       parsing (papaparse), column detection, normalisation
-    export.ts    cleaned-CSV generation, injection-safe escaping, download
-    types.ts     shared types
+    matcher.ts     identifier gate, review tier, scoring, blocking, grouping
+    csv.ts         parsing (papaparse), column detection, normalisation
+    export.ts      cleaned-CSV generation, injection-safe escaping, download
+    scan.worker.ts runs the scan off the main thread and reports progress
+    types.ts       shared types
   App.tsx        upload → mapping → scanning → results flow
   ErrorBoundary.tsx
   App.css
