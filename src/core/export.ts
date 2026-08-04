@@ -13,9 +13,20 @@ export function exportCleanedCSV(groups: DuplicateGroup[], uniqueContacts: Conta
   for (const c of allContacts) Object.keys(c.raw).forEach(k => headerSet.add(k))
   const headers = [...headerSet]
 
-  const escape = (v: string) => v.includes(',') || v.includes('"') || v.includes('\n')
-    ? `"${v.replace(/"/g, '""')}"`
-    : v
+  const sanitize = (v: string): string => {
+    // Prevent CSV formula injection (CWE-1236): values starting with
+    // =, +, -, @, tab, or carriage-return trigger Excel formula execution.
+    if (/^[=+\-@\t\r]/.test(v)) return `'${v}`
+    return v
+  }
+
+  const escape = (v: string) => {
+    const safe = sanitize(v)
+    if (safe.includes(',') || safe.includes('"') || safe.includes('\n') || safe.includes('\r')) {
+      return `"${safe.replace(/"/g, '""')}"`
+    }
+    return safe
+  }
 
   const lines = [headers.join(',')]
   for (const c of deduplicated) {

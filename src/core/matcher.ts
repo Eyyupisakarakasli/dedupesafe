@@ -63,17 +63,19 @@ function emailSimilarity(a: string, b: string): number {
 
   // Same domain + similar local-part (typical for name variants)
   if (domainA === domainB) {
+    // Dot-separated prefix: john.smith → john matches john
+    const prefixA = localA.split('.')[0]
+    const prefixB = localB.split('.')[0]
+    if (prefixA === prefixB) return 0.85
+
+    // Dot/hyphen/underscore-stripped equality
+    if (localA.replace(/[._-]/g, '') === localB.replace(/[._-]/g, '')) return 0.85
+
+    // Jaro-Winkler with high threshold
     const localSim = jaroWinkler(localA, localB)
-    if (localSim >= 0.85) return 0.85
-    // Same domain, common local-part patterns
-    if (
-      localA === `${localB.split('.')[0]}` ||
-      localB === `${localA.split('.')[0]}` ||
-      localA.replace(/[._-]/g, '') === localB.replace(/[._-]/g, '') ||
-      (localA.length > 3 && localB.includes(localA)) ||
-      (localB.length > 3 && localA.includes(localB))
-    ) return 0.80
-    return localSim * 0.5 // weak signal
+    if (localSim >= 0.92) return 0.80
+
+    return 0
   }
 
   return 0
@@ -134,6 +136,7 @@ export function compareContacts(a: Contact, b: Contact): SimilarityResult {
   const scores = {} as Record<DedupeField, number>
   let weightedSum = 0
   let weightSum = 0
+  let positiveFields = 0
 
   for (const field of Object.keys(FIELD_WEIGHTS) as DedupeField[]) {
     const valA = a[field]
@@ -147,9 +150,21 @@ export function compareContacts(a: Contact, b: Contact): SimilarityResult {
     scores[field] = score
     weightedSum += score * FIELD_WEIGHTS[field]
     weightSum += FIELD_WEIGHTS[field]
+    if (score > 0) positiveFields++
   }
 
-  const weightedScore = weightSum > 0 ? Math.min(100, Math.round((weightedSum / weightSum) * 100)) : 0
+  // Require minimum signal: at least 2 fields with positive scores
+  // and total weight >= 0.40 (prevents single-field matches like surname-only)
+  if (positiveFields < 2 || weightSum < 0.40) {
+    return {
+      contactA: a, contactB: b,
+      scores: scores as Record<DedupeField, number>,
+      weightedScore: 0,
+      riskLevel: 'unlikely',
+    }
+  }
+
+  const weightedScore = Math.min(100, Math.round((weightedSum / weightSum) * 100))
 
   const riskLevel: SimilarityResult['riskLevel'] =
     weightedScore >= 90 ? 'certain' :
