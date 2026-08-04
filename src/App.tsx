@@ -1,8 +1,9 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { detectHubSpotMapping, looksLikeContactExport, normalizeContacts, parseCSV } from './core/csv'
 import { findDuplicateGroups } from './core/matcher'
 import { buildMergeSuggestions, downloadFile, exportCleanedCSV } from './core/export'
 import type { ColumnMapping, Contact, DedupeField, DuplicateGroup, ParseResult } from './core/types'
+import type { ScanResponse } from './core/scan.worker'
 import demoCsvText from './data/demo-hubspot-contacts.csv?raw'
 
 type Step = 'upload' | 'mapping' | 'scanning' | 'results'
@@ -21,6 +22,7 @@ const SLOW_SCAN_ROWS = 20_000
 
 interface ScanResult {
   groups: DuplicateGroup[]
+  reviewGroups: DuplicateGroup[]
   uniqueContacts: Contact[]
   contacts: Contact[]
   total: number
@@ -38,12 +40,21 @@ export default function App() {
   const [dragOver, setDragOver] = useState(false)
   const [result, setResult] = useState<ScanResult | null>(null)
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
+  const [confirmedIds, setConfirmedIds] = useState<Set<string>>(new Set())
+  const [progress, setProgress] = useState(0)
+  const workerRef = useRef<Worker | null>(null)
+
+  // A scan still running when the component unmounts must not outlive it.
+  useEffect(() => () => workerRef.current?.terminate(), [])
 
   const resetAll = useCallback(() => {
+    workerRef.current?.terminate()
+    workerRef.current = null
     setParseResult(null)
     setMapping(EMPTY_MAPPING)
     setResult(null)
     setDismissedIds(new Set())
+    setConfirmedIds(new Set())
     setError(null)
     setStep('upload')
   }, [])
@@ -67,6 +78,7 @@ export default function App() {
       setMapping(detected)
       setResult(null)
       setDismissedIds(new Set())
+      setConfirmedIds(new Set())
       setStep('mapping')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to read that CSV.')
@@ -90,20 +102,70 @@ export default function App() {
     if (!parseResult || !mapping.email) return
     setError(null)
     setDismissedIds(new Set())
+    setConfirmedIds(new Set())
+    setProgress(0)
     setStep('scanning')
-    // Yield once so the spinner paints before the synchronous scan blocks the thread.
+
+    const finish = (
+      contacts: Contact[],
+      groups: DuplicateGroup[],
+      reviewGroups: DuplicateGroup[],
+      uniqueContacts: Contact[],
+    ) => {
+      setResult({ groups, reviewGroups, uniqueContacts, contacts, total: contacts.length })
+      setStep('results')
+    }
+    const fail = (message: string) => {
+      setError(message)
+      setStep('mapping')
+    }
+
+    // Run the scan on a worker so the page stays interactive and cancellable.
+    // Falls back to running inline where workers are unavailable.
+    try {
+      const worker = new Worker(new URL('./core/scan.worker.ts', import.meta.url), { type: 'module' })
+      workerRef.current = worker
+      worker.onmessage = (event: MessageEvent<ScanResponse>) => {
+        const msg = event.data
+        if (msg.type === 'progress') {
+          setProgress(msg.total > 0 ? msg.done / msg.total : 0)
+        } else if (msg.type === 'done') {
+          worker.terminate()
+          workerRef.current = null
+          finish(msg.contacts, msg.groups, msg.reviewGroups, msg.uniqueContacts)
+        } else {
+          worker.terminate()
+          workerRef.current = null
+          fail(msg.message)
+        }
+      }
+      worker.onerror = () => {
+        worker.terminate()
+        workerRef.current = null
+        fail('The scan worker failed to start.')
+      }
+      worker.postMessage({ rows: parseResult.rows, mapping })
+      return
+    } catch {
+      // fall through to the inline path
+    }
+
     setTimeout(() => {
       try {
         const contacts = normalizeContacts(parseResult.rows, mapping)
-        const { groups, uniqueContacts } = findDuplicateGroups(contacts)
-        setResult({ groups, uniqueContacts, contacts, total: contacts.length })
-        setStep('results')
+        const { groups, reviewGroups, uniqueContacts } = findDuplicateGroups(contacts)
+        finish(contacts, groups, reviewGroups, uniqueContacts)
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'The scan failed unexpectedly.')
-        setStep('mapping')
+        fail(err instanceof Error ? err.message : 'The scan failed unexpectedly.')
       }
     }, 50)
   }, [parseResult, mapping])
+
+  const cancelScan = useCallback(() => {
+    workerRef.current?.terminate()
+    workerRef.current = null
+    setStep('mapping')
+  }, [])
 
   const updateMappingField = useCallback((field: DedupeField, column: string) => {
     setMapping(prev => ({ ...prev, [field]: column || null }))
@@ -119,6 +181,10 @@ export default function App() {
       next.delete(id)
       return next
     })
+  }, [])
+
+  const confirmGroup = useCallback((id: string) => {
+    setConfirmedIds(prev => new Set(prev).add(id))
   }, [])
 
   if (step === 'upload') {
@@ -149,6 +215,7 @@ export default function App() {
   }
 
   if (step === 'scanning') {
+    const pct = Math.round(progress * 100)
     return (
       <div className="app-container">
         <header>
@@ -157,8 +224,18 @@ export default function App() {
         </header>
         <div className="scanning-indicator" role="status" aria-live="polite">
           <div className="spinner" />
-          <p className="sub">This runs entirely on your device.</p>
+          <div
+            className="progress-track"
+            role="progressbar"
+            aria-valuenow={pct}
+            aria-valuemin={0}
+            aria-valuemax={100}
+          >
+            <div className="progress-fill" style={{ width: `${Math.max(2, pct)}%` }} />
+          </div>
+          <p className="sub">{pct > 0 ? `${pct}% complete` : 'Starting…'} · runs entirely on your device</p>
         </div>
+        <button className="back-btn" onClick={cancelScan}>Cancel</button>
       </div>
     )
   }
@@ -169,7 +246,9 @@ export default function App() {
         result={result}
         headers={parseResult?.headers}
         dismissedIds={dismissedIds}
+        confirmedIds={confirmedIds}
         onDismiss={dismissGroup}
+        onConfirm={confirmGroup}
         onRestore={restoreGroup}
         onRestoreAll={() => setDismissedIds(new Set())}
         onBack={resetAll}
@@ -328,29 +407,38 @@ function MappingStep({ parseResult, mapping, error, onChange, onScan, onBack }: 
 
 // ---------------------------------------------------------------- results
 
-function ResultsStep({ result, headers, dismissedIds, onDismiss, onRestore, onRestoreAll, onBack }: {
+function ResultsStep({
+  result, headers, dismissedIds, confirmedIds,
+  onDismiss, onConfirm, onRestore, onRestoreAll, onBack,
+}: {
   result: ScanResult
   headers: string[] | undefined
   dismissedIds: Set<string>
+  confirmedIds: Set<string>
   onDismiss: (id: string) => void
+  onConfirm: (id: string) => void
   onRestore: (id: string) => void
   onRestoreAll: () => void
   onBack: () => void
 }) {
-  const activeGroups = result.groups.filter(g => !dismissedIds.has(g.id))
-  const dismissedGroups = result.groups.filter(g => dismissedIds.has(g.id))
+  // A review group the user confirmed behaves exactly like a detected duplicate.
+  const promoted = result.reviewGroups.filter(g => confirmedIds.has(g.id) && !dismissedIds.has(g.id))
+  const pendingReview = result.reviewGroups.filter(
+    g => !confirmedIds.has(g.id) && !dismissedIds.has(g.id))
+  const activeGroups = [...result.groups.filter(g => !dismissedIds.has(g.id)), ...promoted]
+  const dismissedGroups = [...result.groups, ...result.reviewGroups].filter(g => dismissedIds.has(g.id))
   const highRisk = activeGroups.filter(g => g.riskLevel === 'certain' || g.riskLevel === 'likely')
   const mediumRisk = activeGroups.filter(g => g.riskLevel === 'possible')
 
   // Contacts in a dismissed group are kept in full — they are not duplicates.
-  const keptFromDismissed = dismissedGroups.flatMap(g => g.contacts)
-  const rowsAfterCleanup = result.uniqueContacts.length + keptFromDismissed.length + activeGroups.length
+  const keptWhole = [...dismissedGroups, ...pendingReview].flatMap(g => g.contacts)
+  const rowsAfterCleanup = result.uniqueContacts.length + keptWhole.length + activeGroups.length
   const rowsRemoved = result.total - rowsAfterCleanup
 
   const handleDownload = () => {
     const csv = exportCleanedCSV(
       activeGroups,
-      [...result.uniqueContacts, ...keptFromDismissed],
+      [...result.uniqueContacts, ...keptWhole],
       result.contacts,
       headers,
     )
@@ -396,6 +484,28 @@ function ResultsStep({ result, headers, dismissedIds, onDismiss, onRestore, onRe
         </div>
       )}
 
+      {pendingReview.length > 0 && (
+        <div className="review-section">
+          <div className="review-intro">
+            <strong>Needs your review ({pendingReview.length})</strong>
+            <p>
+              Same surname and a related first name at the same company, but no matching
+              email or phone. These may be the same person under a nickname — or two
+              different people. <strong>Nothing here is removed from your export</strong> unless
+              you confirm it.
+            </p>
+          </div>
+          {pendingReview.map(group => (
+            <GroupCard
+              key={group.id}
+              group={group}
+              onDismiss={onDismiss}
+              onConfirm={onConfirm}
+            />
+          ))}
+        </div>
+      )}
+
       {dismissedGroups.length > 0 && (
         <div className="dismissed-section">
           <div className="dismissed-header">
@@ -434,26 +544,41 @@ function ResultsStep({ result, headers, dismissedIds, onDismiss, onRestore, onRe
   )
 }
 
-function GroupCard({ group, onDismiss }: {
+function GroupCard({ group, onDismiss, onConfirm }: {
   group: DuplicateGroup
   onDismiss: (id: string) => void
+  onConfirm?: (id: string) => void
 }) {
   const suggestions = buildMergeSuggestions(group)
-  const icon = group.riskLevel === 'certain' ? '🔴' : group.riskLevel === 'likely' ? '🟠' : '🟡'
+  const isReview = group.riskLevel === 'review'
+  const icon = isReview ? '🔎'
+    : group.riskLevel === 'certain' ? '🔴'
+    : group.riskLevel === 'likely' ? '🟠' : '🟡'
 
   return (
     <div className={`group-card ${group.riskLevel}`}>
       <div className="group-header">
         <div>
           <span className={`risk-badge ${group.riskLevel}`}>
-            <span aria-hidden="true">{icon}</span> {group.riskScore}% {group.riskLevel}
+            <span aria-hidden="true">{icon}</span>{' '}
+            {isReview ? 'name match only' : `${group.riskScore}% ${group.riskLevel}`}
           </span>
           <span className="group-size">{group.contacts.length} contacts</span>
         </div>
         <div className="group-actions">
           <span className="master-label">
-            Keeping: <strong>{group.masterContact.email || group.masterContact.firstName || '—'}</strong>
+            {isReview ? 'Would keep: ' : 'Keeping: '}
+            <strong>{group.masterContact.email || group.masterContact.firstName || '—'}</strong>
           </span>
+          {onConfirm && (
+            <button
+              className="confirm-btn"
+              onClick={() => onConfirm(group.id)}
+              title="Treat these as the same person and collapse them on export"
+            >
+              Same person
+            </button>
+          )}
           <button
             className="dismiss-btn"
             onClick={() => onDismiss(group.id)}
