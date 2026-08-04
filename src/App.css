@@ -310,3 +310,44 @@ label.file-btn:focus-visible { outline: 2px solid #f97316; outline-offset: 2px; 
   * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
   .spinner { animation-duration: 1.5s !important; }
 }
+
+/* Scan progress */
+.scanning-indicator { flex-direction: column; gap: 18px; }
+.progress-track {
+  width: 100%; max-width: 420px; height: 6px;
+  background: #27272a; border-radius: 999px; overflow: hidden;
+}
+.progress-fill {
+  height: 100%; background: #f97316; border-radius: 999px;
+  transition: width 0.2s linear;
+}
+
+/* Review tier: name-only matches that need a human decision */
+.review-section {
+  border: 1px solid rgba(234, 179, 8, 0.35);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 24px;
+  background: rgba(234, 179, 8, 0.04);
+  display: flex; flex-direction: column; gap: 16px;
+}
+.review-intro strong { color: #facc15; font-size: 14px; display: block; margin-bottom: 6px; }
+.review-intro p { color: #d4d4d8; font-size: 13px; line-height: 1.5; margin: 0; }
+.review-intro p strong { display: inline; color: #fff; font-size: 13px; }
+
+.group-card.review { border-color: rgba(234, 179, 8, 0.4); }
+.risk-badge.review { color: #facc15; }
+
+.confirm-btn {
+  background: transparent;
+  border: 1px solid #4ade80;
+  color: #4ade80;
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.confirm-btn:hover { background: rgba(74, 222, 128, 0.1); }
+.confirm-btn:focus-visible { outline: 2px solid #f97316; outline-offset: 2px; }
