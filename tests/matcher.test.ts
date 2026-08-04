@@ -234,6 +234,68 @@ describe('findDuplicateGroups', () => {
   })
 })
 
+describe('review tier — name-only matches', () => {
+  const bob = makeContact({ email: 'bob@global.com', firstName: 'Bob', lastName: 'Johnson', phone: '+15550104111', company: 'Global Inc', rowIndex: 0 })
+  const robert = makeContact({ email: 'robert@global.com', firstName: 'Robert', lastName: 'Johnson', phone: '+15550105222', company: 'Global Inc', rowIndex: 1 })
+
+  it('surfaces a nickname pair for review instead of merging it', () => {
+    const { groups, reviewGroups } = findDuplicateGroups([bob, robert])
+    expect(groups).toHaveLength(0)
+    expect(reviewGroups).toHaveLength(1)
+    expect(reviewGroups[0].contacts).toHaveLength(2)
+    expect(reviewGroups[0].riskLevel).toBe('review')
+  })
+
+  it('keeps BOTH review contacts in the export until they are confirmed', () => {
+    const { groups, reviewGroups, uniqueContacts } = findDuplicateGroups([bob, robert])
+    const headers = ['Email']
+    const withRaw = [bob, robert].map(c => ({ ...c, raw: { Email: c.email } }))
+    const kept = reviewGroups.flatMap(g => g.contacts).map(c => withRaw[c.rowIndex])
+    const csv = exportCleanedCSV(groups, [...uniqueContacts, ...kept], withRaw, headers)
+    const rows = csv.replace(/^﻿/, '').trim().split('\r\n').slice(1)
+    expect(rows).toHaveLength(2)
+  })
+
+  it('needs a shared employer or mail domain, not just a name', () => {
+    const elsewhere = makeContact({ ...robert, email: 'robert@othercorp.com', company: 'Other Corp', rowIndex: 1 })
+    expect(findDuplicateGroups([bob, elsewhere]).reviewGroups).toHaveLength(0)
+  })
+
+  it('does not flag two colleagues who merely share a first name', () => {
+    const a = makeContact({ email: 'ahmet.yilmaz@akbank.com', firstName: 'Ahmet', lastName: 'Yilmaz', company: 'Akbank', rowIndex: 0 })
+    const b = makeContact({ email: 'ahmet.kaya@akbank.com', firstName: 'Ahmet', lastName: 'Kaya', company: 'Akbank', rowIndex: 1 })
+    expect(findDuplicateGroups([a, b]).reviewGroups).toHaveLength(0)
+  })
+
+  it('does not flag near-miss surnames as a review pair', () => {
+    // "Arslan" and "Aslan" are two ordinary surnames, not a typo of each other.
+    const a = makeContact({ email: 'ahmet.arslan@akbank.com', firstName: 'Ahmet', lastName: 'Arslan', company: 'Akbank', rowIndex: 0 })
+    const b = makeContact({ email: 'ahmet.aslan@akbank.com', firstName: 'Ahmet', lastName: 'Aslan', company: 'Akbank', rowIndex: 1 })
+    expect(findDuplicateGroups([a, b]).reviewGroups).toHaveLength(0)
+  })
+
+  it('separates spelling variants from genuinely different first names', () => {
+    // first.last addresses, so the email rule stays out of it and the review
+    // tier is what decides. Mehmet/Mehmed differ at the end (a variant);
+    // Selin/Pelin differ at the start (two names).
+    const mk = (fn: string, i: number) => makeContact({
+      email: `${fn.toLowerCase()}.yilmaz@akbank.com`,
+      firstName: fn, lastName: 'Yilmaz', company: 'Akbank', rowIndex: i,
+    })
+    expect(findDuplicateGroups([mk('Selin', 0), mk('Pelin', 1)]).reviewGroups).toHaveLength(0)
+    expect(findDuplicateGroups([mk('Mehmet', 0), mk('Mehmed', 1)]).reviewGroups).toHaveLength(1)
+  })
+
+  it('never puts a contact in both a confirmed group and a review group', () => {
+    const dup = makeContact({ ...bob, email: 'bob@global.com', rowIndex: 2 })
+    const { groups, reviewGroups } = findDuplicateGroups([bob, robert, dup])
+    const inGroups = new Set(groups.flatMap(g => g.contacts.map(c => c.rowIndex)))
+    for (const g of reviewGroups) {
+      for (const c of g.contacts) expect(inGroups.has(c.rowIndex)).toBe(false)
+    }
+  })
+})
+
 describe('detectHubSpotMapping', () => {
   it('detects a standard export', () => {
     const mapping = detectHubSpotMapping(['Email', 'First Name', 'Last Name', 'Phone Number', 'Company Name', 'Lifecycle Stage'])
