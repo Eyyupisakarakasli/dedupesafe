@@ -20,7 +20,7 @@ const FIELD_ORDER: DedupeField[] = ['email', 'firstName', 'lastName', 'phone', '
 const MAX_FILE_BYTES = 50 * 1024 * 1024
 const SLOW_SCAN_ROWS = 20_000
 
-interface ScanResult {
+export interface ScanResult {
   groups: DuplicateGroup[]
   reviewGroups: DuplicateGroup[]
   uniqueContacts: Contact[]
@@ -407,7 +407,7 @@ function MappingStep({ parseResult, mapping, error, onChange, onScan, onBack }: 
 
 // ---------------------------------------------------------------- results
 
-function ResultsStep({
+export function ResultsStep({
   result, headers, dismissedIds, confirmedIds,
   onDismiss, onConfirm, onRestore, onRestoreAll, onBack,
 }: {
@@ -527,7 +527,7 @@ function ResultsStep({
         </div>
       )}
 
-      {result.groups.length > 0 && (
+      {(result.groups.length > 0 || promoted.length > 0) && (
         <>
           <p className="export-summary">
             Export keeps <strong>{rowsAfterCleanup.toLocaleString()}</strong> of {result.total.toLocaleString()} contacts
