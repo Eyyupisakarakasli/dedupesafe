@@ -183,6 +183,37 @@ describe('findDuplicateGroups', () => {
     expect(findDuplicateGroups(contacts).groups[0].contacts).toHaveLength(3)
   })
 
+  it('does not use a sparse contact to bridge conflicting surnames', () => {
+    const contacts = [
+      makeContact({ email: 'info@x.com', firstName: 'Ann', lastName: 'Baker', rowIndex: 0 }),
+      makeContact({ email: 'info@x.com', firstName: 'Ann', rowIndex: 1 }),
+      makeContact({ email: 'info@x.com', firstName: 'Ann', lastName: 'Kwon', rowIndex: 2 }),
+    ]
+
+    const { groups, uniqueContacts } = findDuplicateGroups(contacts)
+    expect(groups).toHaveLength(1)
+    expect(groups[0].contacts).toHaveLength(2)
+    expect(groups[0].contacts.map(c => c.lastName)).not.toEqual(
+      expect.arrayContaining(['Baker', 'Kwon']),
+    )
+    expect(uniqueContacts).toHaveLength(1)
+  })
+
+  it('keeps the conflicting endpoint in a cleaned export', () => {
+    const contacts = [
+      makeContact({ email: 'info@x.com', firstName: 'Ann', lastName: 'Baker', rowIndex: 0, raw: { Email: 'info@x.com', Last: 'Baker' } }),
+      makeContact({ email: 'info@x.com', firstName: 'Ann', rowIndex: 1, raw: { Email: 'info@x.com', Last: '' } }),
+      makeContact({ email: 'info@x.com', firstName: 'Ann', lastName: 'Kwon', rowIndex: 2, raw: { Email: 'info@x.com', Last: 'Kwon' } }),
+    ]
+
+    const { groups, uniqueContacts } = findDuplicateGroups(contacts)
+    const csv = exportCleanedCSV(groups, uniqueContacts, contacts, ['Email', 'Last'])
+    const rows = csv.replace(/^﻿/, '').trim().split('\r\n').slice(1)
+    expect(rows).toHaveLength(2)
+    expect(csv).toContain('Baker')
+    expect(csv).toContain('Kwon')
+  })
+
   it('does NOT merge a company directory into one group (regression)', () => {
     // 60 distinct employees at one employer: 20 first names repeat, every
     // surname/email/phone is unique. Nothing here is a duplicate.

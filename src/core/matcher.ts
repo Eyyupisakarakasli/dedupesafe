@@ -557,6 +557,35 @@ export function findDuplicateGroups(
 
   const { find, union } = makeUnionFind(contacts.length)
 
+  // A safe pair can still be an unsafe bridge between two existing groups:
+  // Baker <-> (surname missing) <-> Kwon. Keep the set of known surnames on
+  // each component and reject a union when any cross-component pair conflicts.
+  // This preserves legitimate transitive matches while preventing a sparse row
+  // from causing a different person to be removed on export.
+  const surnamesByRoot = new Map<number, string[]>()
+  for (let i = 0; i < contacts.length; i++) {
+    surnamesByRoot.set(i, contacts[i].lastName ? [contacts[i].lastName] : [])
+  }
+
+  const unionWithoutSurnameConflict = (x: number, y: number): boolean => {
+    const rootX = find(x)
+    const rootY = find(y)
+    if (rootX === rootY) return true
+
+    const surnamesX = surnamesByRoot.get(rootX) ?? []
+    const surnamesY = surnamesByRoot.get(rootY) ?? []
+    if (surnamesX.some(a => surnamesY.some(b => jaroWinkler(a, b) < SIM_FLOOR))) {
+      return false
+    }
+
+    union(rootX, rootY)
+    const mergedRoot = find(rootX)
+    surnamesByRoot.delete(rootX)
+    surnamesByRoot.delete(rootY)
+    surnamesByRoot.set(mergedRoot, [...new Set([...surnamesX, ...surnamesY])])
+    return true
+  }
+
   const posByRow = new Map<number, number>()
   for (let i = 0; i < contacts.length; i++) posByRow.set(contacts[i].rowIndex, i)
   const posOf = (c: Contact): number => {
@@ -565,7 +594,12 @@ export function findDuplicateGroups(
     return pos
   }
 
-  for (const pair of pairs) union(posOf(pair.contactA), posOf(pair.contactB))
+  const acceptedPairs: SimilarityResult[] = []
+  for (const pair of pairs) {
+    if (unionWithoutSurnameConflict(posOf(pair.contactA), posOf(pair.contactB))) {
+      acceptedPairs.push(pair)
+    }
+  }
 
   const membersByRoot = new Map<number, number[]>()
   for (let pos = 0; pos < contacts.length; pos++) {
@@ -576,7 +610,7 @@ export function findDuplicateGroups(
   }
 
   const pairsByRoot = new Map<number, SimilarityResult[]>()
-  for (const pair of pairs) {
+  for (const pair of acceptedPairs) {
     const root = find(posOf(pair.contactA))
     const list = pairsByRoot.get(root)
     if (list) list.push(pair)
