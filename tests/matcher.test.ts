@@ -489,3 +489,46 @@ describe('buildMergeSuggestions', () => {
     expect(buildMergeSuggestions(groups[0])).toHaveLength(0)
   })
 })
+
+describe('review tier — international name forms', () => {
+  const pair = (aFirst: string, bFirst: string, last: string, domain: string) => [
+    makeContact({ email: `a@${domain}`, firstName: aFirst, lastName: last, company: 'Same Co', rowIndex: 0 }),
+    makeContact({ email: `b@${domain}`, firstName: bFirst, lastName: last, company: 'Same Co', rowIndex: 1 }),
+  ]
+
+  it('links a Slavic form to its English short form through the shared full name', () => {
+    // katarina and kate sit in different rows of the table and only meet
+    // because both rows contain katherine. This is the union step.
+    const { reviewGroups } = findDuplicateGroups(pair('Katarina', 'Kate', 'Novak', 'umbrella.co'))
+
+    expect(reviewGroups).toHaveLength(1)
+  })
+
+  it('links a cross-language equivalent of the same name', () => {
+    const { reviewGroups } = findDuplicateGroups(pair('Guillermo', 'William', 'Ruiz', 'vertex.es'))
+
+    expect(reviewGroups).toHaveLength(1)
+  })
+
+  it('reaches an ASCII table entry from a name written with diacritics', () => {
+    // Contact text keeps its diacritics, so "Hüseyin" only finds the huseyin
+    // row because the lookup folds both sides.
+    const { reviewGroups } = findDuplicateGroups(pair('Hüseyin', 'Huso', 'Demir', 'atlas.com.tr'))
+
+    expect(reviewGroups).toHaveLength(1)
+  })
+
+  it('still separates two ordinary names that differ at the start', () => {
+    const { groups, reviewGroups } = findDuplicateGroups(pair('Selin', 'Pelin', 'Kaya', 'nova.io'))
+
+    expect(groups).toHaveLength(0)
+    expect(reviewGroups).toHaveLength(0)
+  })
+
+  it('does not let the merged table connect two unrelated names', () => {
+    const { groups, reviewGroups } = findDuplicateGroups(pair('Katarina', 'Guillermo', 'Novak', 'umbrella.co'))
+
+    expect(groups).toHaveLength(0)
+    expect(reviewGroups).toHaveLength(0)
+  })
+})

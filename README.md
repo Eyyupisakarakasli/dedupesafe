@@ -87,6 +87,12 @@ end — *Selin* and *Pelin* differ at the start and are two different people. On
 1,000-contact directory where everyone shares one employer and every person is distinct,
 this produces zero review groups.
 
+The known-pair table covers short forms within a language and the same name across
+languages: *Guillermo*/*William*, *Juan*/*John*, *Katarzyna*/*Katherine*. Rows sharing a
+name are merged, so *Katarina* and *Kate* meet through *Katherine* even though they are
+listed separately. Lookups fold diacritics, which is what lets an imported *Hüseyin* reach
+the table's ASCII entry — the stored contact name is never altered.
+
 Two `first.last@` addresses are compared component by component, so `mustafa.yilmaz@` and
 `mustafa.yildirim@` are *different people*, while `j.smith@` and `john.smith@` are the same one.
 

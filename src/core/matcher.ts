@@ -260,6 +260,20 @@ function identifierStrength(a: Contact, b: Contact): number {
 /**
  * Common short forms. A nickname is not proof of identity — it only ever feeds
  * the review tier, never an automatic merge.
+ *
+ * Two kinds of link live in this table and both are deliberate:
+ *
+ *   1. Short forms inside one language: robert/bob, mehmet/memo.
+ *   2. Cross-language equivalents of the same name: juan/john,
+ *      guillermo/william, katarzyna/katherine. These matter because a person
+ *      who works internationally is routinely entered under both spellings —
+ *      once by a local colleague and once by an English-language form.
+ *
+ * The second kind makes some groups transitively large (john now reaches jack,
+ * juan, giovanni, jan and ivan). That is safe here because a nickname alone
+ * decides nothing: isReviewCandidate additionally requires an exact surname
+ * match plus a shared mail domain or employer, and the result is only ever
+ * surfaced for a human to look at.
  */
 const NICKNAME_GROUPS: string[][] = [
   ['robert', 'rob', 'bob', 'bobby', 'robbie'],
@@ -297,22 +311,115 @@ const NICKNAME_GROUPS: string[][] = [
   ['abdullah', 'apo'],
   ['suleyman', 'sulo'],
   ['muhammed', 'muhammet', 'mehmet'],
+  // Cross-language forms of names already listed above.
+  ['john', 'juan', 'joao', 'jean', 'johann', 'johannes', 'hans', 'jan', 'giovanni', 'gianni', 'ivan', 'sean', 'evan'],
+  ['william', 'guillermo', 'guilherme', 'guillaume', 'wilhelm', 'willem', 'wim', 'liam'],
+  ['joseph', 'jose', 'pepe', 'giuseppe', 'beppe', 'josef', 'jozef', 'yusuf', 'youssef', 'yousef'],
+  ['michael', 'miguel', 'michel', 'michele', 'michal', 'mikhail', 'misha', 'mihai'],
+  ['katherine', 'katharina', 'katarina', 'katarzyna', 'kasia', 'ekaterina', 'yekaterina', 'katya', 'caterina'],
+  ['alexander', 'alejandro', 'alessandro', 'aleksandr', 'aleksander', 'oleksandr', 'alexandre', 'sasha'],
+  ['anthony', 'antonio', 'antoine', 'anton', 'antoni'],
+  ['peter', 'pete', 'petya', 'pedro', 'pierre', 'pietro', 'piotr', 'pyotr', 'petr', 'peder'],
+  ['george', 'georg', 'georges', 'giorgio', 'jorge', 'jordi', 'yorgo'],
+  ['charles', 'carlos', 'carlo', 'karl', 'carl', 'karel'],
+  ['thomas', 'tomas', 'tomasz', 'tomek', 'tommaso'],
+  ['andrew', 'andreas', 'andres', 'andrea', 'anders', 'andrzej', 'andrei', 'andrey'],
+  ['stephen', 'stefan', 'steffen', 'stephan', 'esteban', 'stefano', 'istvan'],
+  ['richard', 'ricardo', 'riccardo', 'ricard'],
+  ['edward', 'eduardo', 'edoardo', 'eduard', 'lalo'],
+  ['nicholas', 'nicolas', 'niccolo', 'nikolai', 'nikola', 'klaas'],
+  ['matthew', 'mateo', 'matteo', 'matthias', 'mathias', 'mats', 'matej'],
+  ['frank', 'francis', 'francisco', 'francesco', 'franco', 'francois', 'franz', 'paco', 'pancho'],
+  ['henry', 'harry', 'henri', 'heinrich', 'hendrik', 'henk', 'henrik', 'enrique', 'enrico'],
+  ['lawrence', 'laurence', 'larry', 'lorenzo', 'renzo', 'laurent', 'lars'],
+  ['maria', 'mary', 'marie', 'mariya', 'marya', 'mari'],
+  ['helen', 'elena', 'helena', 'ellen', 'yelena'],
+  ['barbara', 'basia', 'barbie', 'varvara'],
+  ['sophia', 'sofia', 'sophie', 'zofia'],
+
+  // Names with no English counterpart in the list above.
+  ['dmitri', 'dmitry', 'dmitriy', 'dima', 'mitya'],
+  ['sergei', 'sergey', 'serge', 'seryozha'],
+  ['vladimir', 'volodymyr', 'vlad', 'vova', 'volodya'],
+  ['natalia', 'natalya', 'natasha', 'natalie'],
+  ['ahmed', 'ahmad', 'ahmet'],
+  ['hasan', 'hassan'],
+  ['omer', 'ömer', 'umar', 'omar'],
+  ['muhammed', 'muhammet', 'mohammed', 'mohammad', 'muhammad', 'mohamed'],
 ]
 
+/**
+ * Contact text is normalised to NFC and never stripped of diacritics, so real
+ * exports carry "Hüseyin" and "Müller" while this table is written in ASCII.
+ * Folding both sides at lookup time is what lets "Hüseyin" reach the `huseyin`
+ * entry, and it covers spellings the table never lists — a German "Jürgen" and
+ * an ASCII "Jurgen" resolve to the same key without either being enumerated.
+ * Only the lookup folds; the contact's stored name is left exactly as imported.
+ */
+function foldName(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .replace(/ı/g, 'i')
+    .replace(/ş/g, 's')
+    .replace(/ğ/g, 'g')
+    .replace(/ø/g, 'o')
+    .replace(/ł/g, 'l')
+    .replace(/æ/g, 'ae')
+    .replace(/ß/g, 'ss')
+    .toLowerCase()
+}
+
+/**
+ * Groups are merged transitively when they share a name. `katherine` appears in
+ * both the English short-form row and the cross-language row, and without this
+ * union step `kate` and `katarina` would each reach `katherine` while never
+ * reaching each other - which is the pair the table was extended to catch.
+ */
 const NICKNAME_INDEX: ReadonlyMap<string, ReadonlySet<string>> = (() => {
-  const map = new Map<string, Set<string>>()
+  const parent = new Map<string, string>()
+  const find = (name: string): string => {
+    let root = parent.get(name) ?? name
+    while (root !== (parent.get(root) ?? root)) root = parent.get(root) ?? root
+    parent.set(name, root)
+    return root
+  }
+  const union = (a: string, b: string) => {
+    const rootA = find(a)
+    const rootB = find(b)
+    if (rootA !== rootB) parent.set(rootA, rootB)
+  }
+
   for (const group of NICKNAME_GROUPS) {
-    for (const name of group) {
-      let set = map.get(name)
-      if (!set) { set = new Set(); map.set(name, set) }
-      for (const other of group) if (other !== name) set.add(other)
+    const folded = group.map(foldName)
+    for (const name of folded) if (!parent.has(name)) parent.set(name, name)
+    for (let i = 1; i < folded.length; i++) union(folded[0], folded[i])
+  }
+
+  const byRoot = new Map<string, Set<string>>()
+  for (const name of parent.keys()) {
+    const root = find(name)
+    let set = byRoot.get(root)
+    if (!set) { set = new Set(); byRoot.set(root, set) }
+    set.add(name)
+  }
+
+  const map = new Map<string, Set<string>>()
+  for (const members of byRoot.values()) {
+    for (const name of members) {
+      const others = new Set(members)
+      others.delete(name)
+      map.set(name, others)
     }
   }
   return map
 })()
 
 function isNicknameOf(a: string, b: string): boolean {
-  return NICKNAME_INDEX.get(a.toLowerCase())?.has(b.toLowerCase()) ?? false
+  const keyA = foldName(a)
+  const keyB = foldName(b)
+  if (keyA === keyB) return false
+  return NICKNAME_INDEX.get(keyA)?.has(keyB) ?? false
 }
 
 /** Evidence that two rows are definitely different people. */
