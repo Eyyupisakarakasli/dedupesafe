@@ -181,3 +181,7 @@ Stack: React 19, TypeScript, Vite, papaparse, vitest. Deployed as a static site 
 ## Contributing
 
 Run `npm run test` and `npm run build` before committing. When touching `matcher.ts`, re-run the demo CSV and confirm the group count hasn't regressed — scoring changes are easy to make and hard to notice.
+
+## License
+
+[MIT](LICENSE) © Eyyüp İsa Karakaşlı
