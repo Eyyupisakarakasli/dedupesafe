@@ -422,11 +422,30 @@ function isNicknameOf(a: string, b: string): boolean {
   return NICKNAME_INDEX.get(keyA)?.has(keyB) ?? false
 }
 
+/**
+ * One private mailbox written out identically on both rows. A role address is
+ * excluded: info@ is a shared inbox, and any local part built on a role word
+ * is treated the same way, so the surname test keeps its grip on them.
+ */
+function sharesPersonalMailbox(a: Contact, b: Contact): boolean {
+  if (!a.email || !b.email || a.email !== b.email) return false
+  const [local, domain] = splitEmail(a.email)
+  if (!local || !domain) return false
+  if (ROLE_LOCALS.has(baseLocal(local))) return false
+  return !localComponents(local).some(part => ROLE_LOCALS.has(part))
+}
+
 /** Evidence that two rows are definitely different people. */
 function hasConflict(a: Contact, b: Contact): boolean {
+  // A surname that changed between exports - marriage, or a correction - still
+  // belongs to one person when both rows carry the same private address, so an
+  // identical personal mailbox outranks the surname test.
+  if (sharesPersonalMailbox(a, b)) return false
   // Two known, clearly different surnames. Catches shared inboxes (info@) and
-  // colleagues sharing a switchboard number.
-  if (a.lastName && b.lastName && jaroWinkler(a.lastName, b.lastName) < SIM_FLOOR) return true
+  // colleagues sharing a switchboard number. Folded, so "Öztürk" and "Ozturk"
+  // read as one surname instead of a conflict.
+  if (a.lastName && b.lastName &&
+      jaroWinkler(foldName(a.lastName), foldName(b.lastName)) < SIM_FLOOR) return true
   return false
 }
 
@@ -439,17 +458,19 @@ function hasConflict(a: Contact, b: Contact): boolean {
 export function isReviewCandidate(a: Contact, b: Contact): boolean {
   if (identifierStrength(a, b) > 0) return false
   if (!a.lastName || !b.lastName || !a.firstName || !b.firstName) return false
-  // The surname must match outright. Allowing near-misses here surfaced pairs
-  // like "Ahmet Arslan" / "Ahmet Aslan", which are two ordinary surnames one
-  // letter apart, and buried the real nickname matches in noise.
-  if (a.lastName.toLowerCase() !== b.lastName.toLowerCase()) return false
+  // The surname must match outright, after folding. Allowing near-misses here
+  // surfaced pairs like "Ahmet Arslan" / "Ahmet Aslan", which are two ordinary
+  // surnames one letter apart, and buried the real nickname matches in noise.
+  // Folding keeps "Öztürk" and "Ozturk" together: one export written once with
+  // diacritics and once without.
+  if (foldName(a.lastName) !== foldName(b.lastName)) return false
 
   // A known short form, or a spelling variant. The 0.92 bar leans on the
   // Jaro-Winkler prefix bonus: "mehmet"/"mehmed" differ at the end and pass,
   // while "selin"/"pelin" differ at the start and are two different names.
   const firstRelated =
     isNicknameOf(a.firstName, b.firstName) ||
-    jaroWinkler(a.firstName, b.firstName) >= 0.92
+    jaroWinkler(foldName(a.firstName), foldName(b.firstName)) >= 0.92
   if (!firstRelated) return false
 
   const [, domainA] = a.email ? splitEmail(a.email) : ['', '']
@@ -584,12 +605,22 @@ function blockingKeys(c: Contact): { index: string[]; probe: string[] } {
   // or mail domain, so key on both. A 4-character surname prefix is implied by
   // the 0.9 similarity bar.
   if (c.lastName && c.firstName) {
-    const surname = c.lastName.slice(0, 4).toLowerCase()
+    // Folded, because isReviewCandidate compares folded surnames: "Öztürk" and
+    // "Ozturk" have to share a bucket before they can ever be compared.
+    const surname = foldName(c.lastName).slice(0, 4)
     if (c.email) {
       const [, domain] = splitEmail(c.email)
       if (domain) both(`rd:${domain}|${surname}`)
     }
-    if (c.company) both(`rc:${c.company.toLowerCase()}|${surname}`)
+    if (c.company) {
+      // The employer key is stripped, not raw, so the bucket follows
+      // companySimilarity: "Acme Inc" and "Acme, Inc." reduce to one key.
+      // Truncating it further would be wrong - an export where every employer
+      // shares a prefix ("Company 1", "Company 2") would collapse into a
+      // single bucket and turn the scan quadratic.
+      const employer = stripCompany(c.company)
+      if (employer) both(`rc:${employer}|${surname}`)
+    }
   }
 
   return { index, probe }
@@ -674,14 +705,15 @@ export function findDuplicateGroups(
     surnamesByRoot.set(i, contacts[i].lastName ? [contacts[i].lastName] : [])
   }
 
-  const unionWithoutSurnameConflict = (x: number, y: number): boolean => {
+  const unionWithoutSurnameConflict = (x: number, y: number, force = false): boolean => {
     const rootX = find(x)
     const rootY = find(y)
     if (rootX === rootY) return true
 
     const surnamesX = surnamesByRoot.get(rootX) ?? []
     const surnamesY = surnamesByRoot.get(rootY) ?? []
-    if (surnamesX.some(a => surnamesY.some(b => jaroWinkler(a, b) < SIM_FLOOR))) {
+    if (!force && surnamesX.some(a => surnamesY.some(
+      b => jaroWinkler(foldName(a), foldName(b)) < SIM_FLOOR))) {
       return false
     }
 
@@ -703,7 +735,12 @@ export function findDuplicateGroups(
 
   const acceptedPairs: SimilarityResult[] = []
   for (const pair of pairs) {
-    if (unionWithoutSurnameConflict(posOf(pair.contactA), posOf(pair.contactB))) {
+    // The bridge guard exists to stop a sparse row from joining two people. A
+    // pair on one identical private mailbox is the opposite case - two spellings
+    // of one person - and compareContacts already let it through, so the guard
+    // must not overrule it.
+    const oneMailbox = sharesPersonalMailbox(pair.contactA, pair.contactB)
+    if (unionWithoutSurnameConflict(posOf(pair.contactA), posOf(pair.contactB), oneMailbox)) {
       acceptedPairs.push(pair)
     }
   }

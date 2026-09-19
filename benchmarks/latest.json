@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-19T07:07:15.966Z",
+  "generatedAt": "2026-09-19T17:16:57.069Z",
   "runtime": {
     "node": "v24.15.0",
     "platform": "win32 10.0.26200",
@@ -11,13 +11,13 @@
       "rows": 10000,
       "plantedDuplicatePairs": 500,
       "detectedGroups": 500,
-      "durationMs": 127.57
+      "durationMs": 130.59
     },
     {
       "rows": 50000,
       "plantedDuplicatePairs": 2500,
       "detectedGroups": 2500,
-      "durationMs": 687.36
+      "durationMs": 636.41
     }
   ]
 }

@@ -63,7 +63,15 @@ name variants when surname and employer or email domain agree.
 
 The matcher rejects a pair when both rows contain clearly different surnames,
 even if they share an inbox or switchboard number. This prevents a sparse row
-from joining two people through transitive grouping.
+from joining two people through transitive grouping. The one exception is an
+identical private address on both rows: a surname that changed between exports
+still belongs to one mailbox. Role addresses such as `info@` and
+`sales.team@` keep the surname rule.
+
+Names are compared with diacritics folded, so "Öztürk" and "Ozturk" are one
+surname on both the review and the conflict path. Employer comparison ignores
+punctuation and legal suffixes, so "Acme Inc" and "Acme, Inc." are one
+employer.
 
 ## Development
 

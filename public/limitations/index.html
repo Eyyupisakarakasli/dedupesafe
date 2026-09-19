@@ -16,7 +16,7 @@
       <ul>
         <li>A contact pair with no shared email, phone, surname, company or known name variant may be missed.</li>
         <li>Name-variant coverage is incomplete and stronger in English than in other languages.</li>
-        <li>Different surnames can represent a legitimate name change. The matcher treats them conservatively.</li>
+        <li>Different surnames can represent a legitimate name change. The matcher treats them conservatively, and only accepts the pair when both rows carry the same private email address.</li>
         <li>Non-Latin company names do not contribute to the company similarity score.</li>
         <li>The export collapses only groups you approve. It keeps one complete row and produces a separate audit report; it does not update records inside HubSpot.</li>
         <li>The checker requires an email column and accepts CSV files up to 50 MB.</li>

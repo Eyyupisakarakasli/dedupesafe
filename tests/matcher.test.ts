@@ -557,3 +557,91 @@ describe('review tier — international name forms', () => {
     expect(reviewGroups).toHaveLength(0)
   })
 })
+
+describe('folded surnames', () => {
+  const pair = (aFirst: string, aLast: string, bFirst: string, bLast: string) => [
+    makeContact({ firstName: aFirst, lastName: aLast, company: 'acme', rowIndex: 0 }),
+    makeContact({ firstName: bFirst, lastName: bLast, company: 'acme', rowIndex: 1 }),
+  ]
+
+  it('reviews one surname written with and without diacritics', () => {
+    const { reviewGroups } = findDuplicateGroups(pair('Mehmet', 'Öztürk', 'Memo', 'Ozturk'))
+
+    expect(reviewGroups).toHaveLength(1)
+    expect(reviewGroups[0].contacts).toHaveLength(2)
+  })
+
+  it('still separates two different surnames that fold to different keys', () => {
+    const { groups, reviewGroups } = findDuplicateGroups(pair('Mehmet', 'Öztürk', 'Memo', 'Yılmaz'))
+
+    expect(groups).toHaveLength(0)
+    expect(reviewGroups).toHaveLength(0)
+  })
+
+  it('does not read a diacritic as a surname conflict on a shared switchboard', () => {
+    const contacts = [
+      makeContact({ firstName: 'Ayşe', lastName: 'Şahin', phone: '+902125550101', rowIndex: 0 }),
+      makeContact({ firstName: 'Ayse', lastName: 'Sahin', phone: '+902125550101', rowIndex: 1 }),
+    ]
+
+    expect(findDuplicateGroups(contacts).groups).toHaveLength(1)
+  })
+})
+
+describe('employer blocking follows companySimilarity', () => {
+  const pair = (aCompany: string, bCompany: string) => [
+    makeContact({ firstName: 'Robert', lastName: 'Baker', company: aCompany, rowIndex: 0 }),
+    makeContact({ firstName: 'Bob', lastName: 'Baker', company: bCompany, rowIndex: 1 }),
+  ]
+
+  it('reviews a nickname pair whose employer differs only in punctuation', () => {
+    expect(findDuplicateGroups(pair('acme inc', 'acme, inc.')).reviewGroups).toHaveLength(1)
+  })
+
+  it('reviews a nickname pair at an employer written with and without its legal suffix', () => {
+    expect(findDuplicateGroups(pair('vertex logistics', 'vertex logistics ltd')).reviewGroups).toHaveLength(1)
+  })
+
+  it('does not reach an employer written in long and short form', () => {
+    // Blocking keys on the whole stripped employer, so "Northwind" and
+    // "Northwind Trading" never meet. Widening the key to a prefix would put
+    // every row of a single-employer export in one bucket.
+    expect(findDuplicateGroups(pair('northwind', 'northwind trading')).reviewGroups).toHaveLength(0)
+  })
+
+  it('leaves a nickname pair at two unrelated employers alone', () => {
+    expect(findDuplicateGroups(pair('acme', 'vertex logistics')).reviewGroups).toHaveLength(0)
+  })
+})
+
+describe('surname change on one personal mailbox', () => {
+  const smith = makeContact({ email: 'jane.doe@acme.com', firstName: 'Jane', lastName: 'Smith', rowIndex: 0 })
+  const johnson = makeContact({ email: 'jane.doe@acme.com', firstName: 'Jane', lastName: 'Johnson', rowIndex: 1 })
+
+  it('merges two spellings of one person on an identical private address', () => {
+    const { groups } = findDuplicateGroups([smith, johnson])
+
+    expect(groups).toHaveLength(1)
+    expect(groups[0].contacts).toHaveLength(2)
+  })
+
+  it('does not extend that exemption to a role mailbox', () => {
+    const a = makeContact({ email: 'sales.team@acme.com', firstName: 'Ann', lastName: 'Baker', rowIndex: 0 })
+    const b = makeContact({ email: 'sales.team@acme.com', firstName: 'Ann', lastName: 'Kwon', rowIndex: 1 })
+
+    expect(findDuplicateGroups([a, b]).groups).toHaveLength(0)
+  })
+
+  it('does not let the merged group swallow a third person on a shared phone', () => {
+    const contacts = [
+      makeContact({ ...smith, phone: '+12125550101' }),
+      johnson,
+      makeContact({ firstName: 'Ann', lastName: 'Kwon', phone: '+12125550101', rowIndex: 2 }),
+    ]
+
+    const { groups, uniqueContacts } = findDuplicateGroups(contacts)
+    expect(groups).toHaveLength(1)
+    expect(groups[0].contacts).toHaveLength(2)
+    expect(uniqueContacts.map(c => c.lastName)).toEqual(['Kwon'])
+  })
+})
