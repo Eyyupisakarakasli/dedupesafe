@@ -20,3 +20,26 @@ authorized dataset has been labeled, anonymized and evaluated.
 The evaluation record must include dataset provenance, permission, labeling
 method, duplicate definition, false positives, false negatives and review-tier
 decisions. Never commit raw contact data.
+
+## Run the evaluation
+
+Prepare an authorized CSV with these headers:
+
+```text
+entity_id,Email,First Name,Last Name,Phone,Company
+```
+
+Rows that describe the same person must share one `entity_id`. Create a separate
+metadata JSON file with non-empty `provenance`, `permission`, `labelingMethod`,
+`duplicateDefinition` and `anonymization` strings. Do not put names, emails,
+phone numbers or other personal data in the metadata.
+
+Run:
+
+```powershell
+npm run evaluate -- C:\safe\labeled.csv C:\safe\labeled.meta.json C:\safe\evaluation.json
+```
+
+The report contains a SHA-256 fingerprint, aggregate precision/recall counts and
+row-number pairs for errors. It does not copy contact values or `entity_id`
+values. Keep the source CSV outside the repository.
