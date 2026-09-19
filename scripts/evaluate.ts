@@ -109,6 +109,11 @@ const reviewPairs = pairsForGroups(result.reviewGroups)
 const candidatePairs = new Set([...automaticPairs, ...reviewPairs])
 const automaticTruePositives = intersectionSize(automaticPairs, truthPairs)
 const candidateTruePositives = intersectionSize(candidatePairs, truthPairs)
+const automaticFalsePositives = difference(automaticPairs, truthPairs)
+const automaticFalseNegatives = difference(truthPairs, automaticPairs)
+const reviewFalsePositives = difference(reviewPairs, truthPairs)
+const candidateFalsePositives = difference(candidatePairs, truthPairs)
+const candidateFalseNegatives = difference(truthPairs, candidatePairs)
 
 const report = {
   generatedAt: new Date().toISOString(),
@@ -122,21 +127,26 @@ const report = {
   automaticTier: {
     predictedPairs: automaticPairs.size,
     truePositives: automaticTruePositives,
-    falsePositives: difference(automaticPairs, truthPairs),
-    falseNegatives: difference(truthPairs, automaticPairs),
+    falsePositiveCount: automaticFalsePositives.length,
+    falseNegativeCount: automaticFalseNegatives.length,
+    falsePositives: automaticFalsePositives,
+    falseNegatives: automaticFalseNegatives,
     precision: ratio(automaticTruePositives, automaticPairs.size),
     recall: ratio(automaticTruePositives, truthPairs.size),
   },
   reviewTier: {
     predictedPairs: reviewPairs.size,
     truePositives: intersectionSize(reviewPairs, truthPairs),
-    falsePositives: difference(reviewPairs, truthPairs),
+    falsePositiveCount: reviewFalsePositives.length,
+    falsePositives: reviewFalsePositives,
   },
   allCandidates: {
     predictedPairs: candidatePairs.size,
     truePositives: candidateTruePositives,
-    falsePositives: difference(candidatePairs, truthPairs),
-    falseNegatives: difference(truthPairs, candidatePairs),
+    falsePositiveCount: candidateFalsePositives.length,
+    falseNegativeCount: candidateFalseNegatives.length,
+    falsePositives: candidateFalsePositives,
+    falseNegatives: candidateFalseNegatives,
     precision: ratio(candidateTruePositives, candidatePairs.size),
     recall: ratio(candidateTruePositives, truthPairs.size),
   },
