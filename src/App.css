@@ -17,6 +17,16 @@ body {
   padding: 40px 20px 80px;
 }
 
+.app-brand {
+  display: block;
+  width: fit-content;
+  margin: 0 auto 28px;
+  color: #c4b5fd;
+  font-weight: 800;
+  text-decoration: none;
+  letter-spacing: -0.02em;
+}
+
 header {
   text-align: center;
   margin-bottom: 40px;
@@ -102,7 +112,7 @@ header p {
 .preview-value { color: #a1a1aa; font-size: 13px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .preview-section { margin-bottom: 32px; }
-.preview-section h3 { font-size: 16px; margin-bottom: 12px; color: #d4d4d8; }
+.preview-section h2 { font-size: 16px; margin-bottom: 12px; color: #d4d4d8; }
 .preview-section table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .preview-section th, .preview-section td { text-align: left; padding: 6px 10px; border-bottom: 1px solid #27272a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
 .preview-section th { color: #d4d4d8; font-weight: 600; }
@@ -331,6 +341,17 @@ label.file-btn:focus-visible { outline: 2px solid #f97316; outline-offset: 2px; 
   background: rgba(234, 179, 8, 0.04);
   display: flex; flex-direction: column; gap: 16px;
 }
+.approved-section {
+  border: 1px solid rgba(74, 222, 128, 0.35);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 24px;
+  background: rgba(74, 222, 128, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.approved-section .review-intro strong { color: #4ade80; }
 .review-intro strong { color: #facc15; font-size: 14px; display: block; margin-bottom: 6px; }
 .review-intro p { color: #d4d4d8; font-size: 13px; line-height: 1.5; margin: 0; }
 .review-intro p strong { display: inline; color: #fff; font-size: 13px; }
@@ -351,3 +372,40 @@ label.file-btn:focus-visible { outline: 2px solid #f97316; outline-offset: 2px; 
 }
 .confirm-btn:hover { background: rgba(74, 222, 128, 0.1); }
 .confirm-btn:focus-visible { outline: 2px solid #f97316; outline-offset: 2px; }
+
+.export-panel {
+  border: 1px solid #3f3f46;
+  border-radius: 12px;
+  padding: 18px;
+  margin-bottom: 16px;
+  background: #141418;
+}
+.export-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.export-actions .scan-btn, .export-actions .back-btn { margin: 0; }
+.export-review { margin-top: 18px; padding-top: 18px; border-top: 1px solid #27272a; }
+.export-review h2 { font-size: 18px; margin-bottom: 12px; }
+.export-review dl { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 0 0 16px; }
+.export-review dl div { padding: 10px; border: 1px solid #27272a; border-radius: 8px; }
+.export-review dt { color: #a1a1aa; font-size: 11px; }
+.export-review dd { margin: 4px 0 0; font-size: 18px; font-weight: 800; }
+.confirm-export { display: flex; align-items: flex-start; gap: 10px; margin: 16px 0; color: #d4d4d8; font-size: 13px; line-height: 1.45; }
+.confirm-export input { margin-top: 2px; }
+
+.product-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px 18px;
+  margin-top: 42px;
+  padding-top: 24px;
+  border-top: 1px solid #27272a;
+  color: #8b8b93;
+  font-size: 12px;
+  text-align: center;
+}
+.product-footer a { color: #a1a1aa; }
+.product-footer p { width: 100%; margin: 0; }
+
+@media (max-width: 640px) {
+  .export-actions, .export-review dl { grid-template-columns: 1fr; }
+}

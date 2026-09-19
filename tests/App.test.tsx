@@ -33,14 +33,16 @@ describe('ResultsStep export controls', () => {
         confirmedIds={new Set([reviewGroup.id])}
         onDismiss={() => {}}
         onConfirm={() => {}}
+        onUnconfirm={() => {}}
         onRestore={() => {}}
         onRestoreAll={() => {}}
         onBack={() => {}}
       />,
     )
 
-    expect(html).toContain('Download Cleaned CSV')
-    expect(html).toContain('removes 1 duplicate row')
+    expect(html).toContain('Approved merges (1)')
+    expect(html).toContain('Review export')
+    expect(html).toContain('removes 1 approved duplicate row')
   })
 
   it('keeps the export available when every automatic group is dismissed', () => {
@@ -72,13 +74,45 @@ describe('ResultsStep export controls', () => {
         confirmedIds={new Set()}
         onDismiss={() => {}}
         onConfirm={() => {}}
+        onUnconfirm={() => {}}
         onRestore={() => {}}
         onRestoreAll={() => {}}
         onBack={() => {}}
       />,
     )
 
-    expect(html).toContain('Download Cleaned CSV')
+    expect(html).toContain('Download audit report')
     expect(html).toContain('nothing removed')
+  })
+
+  it('keeps every unreviewed automatic group intact by default', () => {
+    const contacts: Contact[] = [
+      { email: 'same@example.com', firstName: 'A', lastName: 'One', phone: '', company: '', raw: {}, rowIndex: 0 },
+      { email: 'same@example.com', firstName: 'A', lastName: 'One', phone: '', company: '', raw: {}, rowIndex: 1 },
+    ]
+    const group: DuplicateGroup = {
+      id: 'group-0', contacts, masterContact: contacts[0], pairs: [], riskScore: 100, riskLevel: 'certain',
+    }
+    const result: ScanResult = { groups: [group], reviewGroups: [], uniqueContacts: [], contacts, total: 2 }
+
+    const html = renderToStaticMarkup(
+      <ResultsStep
+        result={result}
+        headers={['Email']}
+        dismissedIds={new Set()}
+        confirmedIds={new Set()}
+        onDismiss={() => {}}
+        onConfirm={() => {}}
+        onUnconfirm={() => {}}
+        onRestore={() => {}}
+        onRestoreAll={() => {}}
+        onBack={() => {}}
+      />,
+    )
+
+    expect(html).toContain('Awaiting decision')
+    expect(html).toContain('nothing removed')
+    expect(html).toContain('Merge these')
+    expect(html).toContain('Keep both')
   })
 })

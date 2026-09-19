@@ -1,0 +1,89 @@
+:root {
+  color-scheme: dark;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #090b10;
+  color: #f7f7f8;
+  font-synthesis: none;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: radial-gradient(circle at 50% -10%, #28214a 0, #0d1017 32rem, #090b10 52rem); }
+a { color: inherit; }
+p { color: #b7bbc7; line-height: 1.65; }
+
+.site-header {
+  width: min(1120px, calc(100% - 40px));
+  margin: 0 auto;
+  min-height: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+.brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 760; }
+.brand span { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: #7c3aed; font-size: 12px; }
+nav { display: flex; align-items: center; gap: 24px; }
+nav a { color: #c7cad4; text-decoration: none; font-size: 14px; }
+.nav-cta { padding: 9px 14px; border: 1px solid #5b536c; border-radius: 9px; color: #fff; }
+
+main { width: min(1120px, calc(100% - 40px)); margin: 0 auto; }
+.hero { text-align: center; padding: 112px 0 88px; max-width: 900px; margin: 0 auto; }
+.eyebrow { color: #a78bfa; text-transform: uppercase; letter-spacing: .12em; font-size: 12px; font-weight: 760; margin-bottom: 14px; }
+h1 { margin: 0; font-size: clamp(44px, 7vw, 78px); line-height: .98; letter-spacing: -.055em; }
+h2 { margin: 0; font-size: clamp(30px, 4vw, 48px); line-height: 1.05; letter-spacing: -.035em; }
+.lede { font-size: 19px; max-width: 730px; margin: 26px auto 0; }
+.hero-actions { display: flex; justify-content: center; gap: 12px; margin-top: 34px; flex-wrap: wrap; }
+.primary, .secondary { display: inline-flex; justify-content: center; align-items: center; min-height: 48px; padding: 0 20px; border-radius: 10px; font-weight: 700; text-decoration: none; }
+.primary { background: #7c3aed; color: #fff; }
+.primary:hover { background: #6d28d9; }
+.secondary { border: 1px solid #474b57; color: #ececf0; }
+.secondary:hover { border-color: #8b5cf6; }
+.microcopy { font-size: 13px; margin: 16px 0 0; }
+
+.proof-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 110px; }
+.proof-grid article, .comparison-card { border: 1px solid #282c35; border-radius: 16px; padding: 24px; background: rgba(19, 22, 30, .86); }
+.proof-grid strong { font-size: 17px; }
+.proof-grid p { margin: 10px 0 0; font-size: 14px; }
+
+.section { display: grid; grid-template-columns: .85fr 1.15fr; gap: 70px; padding: 96px 0; border-top: 1px solid #232630; }
+.section > div:first-child > p { max-width: 420px; }
+.steps { list-style: none; padding: 0; margin: 0; display: grid; gap: 14px; }
+.steps li { display: flex; gap: 16px; padding: 20px; border: 1px solid #282c35; border-radius: 14px; background: #10131a; }
+.steps li > span { flex: 0 0 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; background: #29203f; color: #c4b5fd; font-weight: 700; }
+.steps strong { display: block; }
+.steps p { margin: 6px 0 0; }
+.comparison-card p { margin-top: 0; }
+.comparison-card a, .privacy a { color: #c4b5fd; text-underline-offset: 3px; }
+code { color: #d8b4fe; background: #17131f; padding: 2px 6px; border-radius: 5px; }
+
+.faq details { border-bottom: 1px solid #292d36; padding: 18px 0; }
+.faq summary { cursor: pointer; font-weight: 700; }
+.faq details p { margin: 12px 0 0; }
+.final-cta { text-align: center; padding: 110px 0; border-top: 1px solid #232630; }
+.final-cta .primary { margin-top: 28px; }
+
+footer { width: min(1120px, calc(100% - 40px)); margin: 0 auto; padding: 38px 0 48px; border-top: 1px solid #232630; display: grid; grid-template-columns: 1fr auto; gap: 18px 48px; }
+footer p { margin: 6px 0 0; font-size: 13px; }
+.footer-links { display: flex; gap: 18px; flex-wrap: wrap; }
+.footer-links a { color: #c7cad4; font-size: 13px; }
+.disclaimer { grid-column: 1 / -1; max-width: 860px; }
+
+.legal-page { width: min(760px, calc(100% - 40px)); margin: 0 auto; padding: 80px 0; }
+.legal-page h1 { font-size: clamp(38px, 7vw, 58px); }
+.legal-page h2 { font-size: 24px; margin-top: 42px; }
+.legal-page li { color: #b7bbc7; line-height: 1.65; margin: 8px 0; }
+.back-link { display: inline-block; margin-bottom: 36px; color: #c4b5fd; }
+
+@media (max-width: 760px) {
+  .site-header { align-items: flex-start; padding-top: 20px; }
+  nav > a:not(.nav-cta) { display: none; }
+  .hero { padding: 80px 0 64px; }
+  .proof-grid, .section { grid-template-columns: 1fr; }
+  .proof-grid { margin-bottom: 60px; }
+  .section { gap: 34px; padding: 68px 0; }
+  footer { grid-template-columns: 1fr; }
+  .disclaimer { grid-column: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }

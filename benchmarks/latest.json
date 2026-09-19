@@ -1,0 +1,23 @@
+{
+  "generatedAt": "2026-09-19T07:07:15.966Z",
+  "runtime": {
+    "node": "v24.15.0",
+    "platform": "win32 10.0.26200",
+    "cpu": "AMD Ryzen 9 8940HX with Radeon Graphics        "
+  },
+  "method": "One warm-up run, then one deterministic run per size. Five percent of rows are exact-identity +tag variants.",
+  "results": [
+    {
+      "rows": 10000,
+      "plantedDuplicatePairs": 500,
+      "detectedGroups": 500,
+      "durationMs": 127.57
+    },
+    {
+      "rows": 50000,
+      "plantedDuplicatePairs": 2500,
+      "detectedGroups": 2500,
+      "durationMs": 687.36
+    }
+  ]
+}

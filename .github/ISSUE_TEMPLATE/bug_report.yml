@@ -1,0 +1,33 @@
+name: Bug report
+description: Report a reproducible problem without sharing contact data
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: "Do not attach a CRM export, email address, phone number or other personal data. Reproduce the problem with invented rows."
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      description: Use invented sample data only.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and version
+    validations:
+      required: true

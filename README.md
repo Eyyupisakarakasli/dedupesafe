@@ -1,186 +1,128 @@
-# HubSpot Duplicate Contact Checker
+# DedupeSafe
 
-Find duplicate contacts in a HubSpot CSV export — including the ones exact-match tools miss, like `john@acme.com` vs `john.smith@acme.com`.
+DedupeSafe reviews likely duplicate contacts in a HubSpot CSV export. It runs
+inside the browser, requires no account or API access, and removes no row until
+the user approves a merge and confirms the final export.
 
-Everything runs in your browser. Your contact file never leaves your device.
+Live site: https://dedupesafe.vercel.app
 
-👉 **[hubspot-dup-checker.vercel.app](https://hubspot-dup-checker.vercel.app)**
+![DedupeSafe review screen](docs/product-screenshot.png)
 
----
+## Where it fits
 
-## Why
+HubSpot automatically deduplicates new contacts by exact email across plans.
+HubSpot's duplicate manager compares several contact properties, but requires a
+Professional or Enterprise subscription. DedupeSafe provides a local CSV review
+step for Free and Starter teams and for consultants who do not want portal
+access during an initial audit.
 
-HubSpot's built-in duplicate management only reliably catches exact email matches. Real CRM data is messier: the same person entered twice with a work email and a personal one, a nickname instead of a legal name, a company written as both `Acme Corp` and `ACME Corporation`.
+Current HubSpot documentation:
 
-This tool scores contacts across five fields, groups the likely duplicates, picks the most complete record as the master, and exports a cleaned CSV.
+- https://knowledge.hubspot.com/records/deduplication-of-records
+- https://knowledge.hubspot.com/records/manage-duplicate-records
+
+## Safety model
+
+- Every candidate group starts as **unreviewed** and stays unchanged.
+- **Merge these** approves one group for collapse.
+- **Keep both** preserves every row in that group.
+- The final export requires a separate confirmation checkbox.
+- A second download records every group, row, confidence label and decision in
+  an audit CSV.
+- The original file is never modified.
+
+The export keeps the most complete row in each approved group. It does not merge
+missing values into that row. The review screen and audit report list values to
+copy before importing the result.
 
 ## Privacy
 
-This is the whole point of the product, so it's worth being precise:
+The checker has no backend, database, account or analytics script. It makes no
+runtime network requests. The production Content Security Policy includes
+`connect-src 'none'`, which blocks fetch, XHR, WebSocket and beacon connections.
 
-- **No server.** No backend, no database, no account. The app is static files.
-- **No network requests at runtime.** The app makes zero `fetch`/XHR calls. The demo CSV is inlined into the JS bundle at build time, not downloaded.
-- **Enforced, not just promised.** The deployed site ships `Content-Security-Policy: connect-src 'none'` plus `script-src 'self'` (see `vercel.json`). The browser blocks the page from opening any network connection, so the app *cannot* upload your contacts even if a future dependency tried to.
-- **No analytics, telemetry, third-party scripts, or CDN fonts.**
+The landing page, checker and demo URLs can be counted through ordinary Vercel
+request logs. Those requests never contain the CSV, contact count, mapping,
+match results or export decisions. See [measurement](docs/MEASUREMENT.md) and
+[privacy](public/privacy/index.html).
 
-Verify it yourself: open DevTools → Network, run a full scan, and watch it stay empty.
+## Matching rules
 
-## Quick start
+Automatic candidates require a shared identifier:
+
+| Identifier | Maximum confidence |
+| --- | ---: |
+| identical email or `+tag` variant | 100% |
+| identical phone or matching long suffix | 100% |
+| compatible same-domain email local parts | 95% |
+| same handle across providers, with another agreeing field | 85% |
+
+Names and companies can strengthen an identifier. They cannot create an
+automatic candidate on their own. A separate review tier surfaces selected
+name variants when surname and employer or email domain agree.
+
+The matcher rejects a pair when both rows contain clearly different surnames,
+even if they share an inbox or switchboard number. This prevents a sparse row
+from joining two people through transitive grouping.
+
+## Development
+
+Requires Node.js 24.
 
 ```bash
 npm install
-npm run dev      # http://localhost:5173
+npm run dev
 ```
 
-| Script | Does |
-|---|---|
-| `npm run dev` | Dev server with HMR |
-| `npm run build` | Typecheck + production build to `dist/` |
-| `npm run test` | Vitest unit tests |
+| Command | Purpose |
+| --- | --- |
+| `npm test` | Unit and demo regression tests |
+| `npm run test:e2e` | Chromium launch flow, worker scan and downloads |
 | `npm run lint` | Oxlint |
+| `npm run build` | TypeScript and production Vite build |
+| `npm run benchmark` | Deterministic 10k and 50k matching runs |
+| `npm audit --audit-level=high` | Dependency audit |
 
-## How to use it
-
-1. **Export from HubSpot.** Contacts → *Export*, CSV format. Include at least the email column; first name, last name, phone, and company all improve accuracy.
-2. **Drop the file in.** Nothing uploads — the file is read locally.
-3. **Confirm the column mapping.** The app guesses your columns and shows a sample value from row 1 next to each. **Check these** — a wrong guess silently poisons the whole scan. Any field except email can be set to *Skip*.
-4. **Review the groups.** Each group shows its confidence score, the contacts in it, which record was picked as master (★), and which values differ from the master.
-5. **Dismiss false positives.** Hit **Not a duplicate** on any group that's wrong; its contacts are then kept in full in the export. Dismissed groups are listed at the bottom and can be restored individually or all at once.
-6. **Download the cleaned CSV.** The button states exactly how many rows will be kept and how many removed before you click.
-
-## How matching works
-
-Each candidate pair is scored 0–100 as a weighted average over the fields that **both** contacts have filled in. A field empty on either side is skipped entirely — it neither helps nor hurts the score.
-
-### The rule that matters
-
-Two rows are only ever linked when they share a **strong identifier**. Names, companies and
-first-name similarity can *corroborate* an identity but can never establish one on their own —
-otherwise everyone called Mehmet at one employer collapses into a single "duplicate".
-
-| Identifier | Strength | Confidence ceiling |
-|---|---|---|
-| Identical email, or identical apart from a `+tag` | decisive | 100% |
-| Identical phone number (or same last 9 digits, min 7) | decisive | 100% |
-| Same domain, local-part variant (`john@` ~ `john.smith@`, `j.smith@` ~ `john.smith@`) | strong | 95% |
-| Same handle at another provider (`x@acme.com` ~ `x@gmail.com`), or two near-identical bare handles | probable | 85% |
-
-A **probable** identifier additionally requires at least one other field to agree.
-
-### The review tier
-
-Requiring an identifier is safe but strict: it misses `Bob Johnson` / `Robert Johnson`, who
-are plainly the same person to a human. Rather than loosen the rule and risk deleting real
-contacts, those land in a second tier:
-
-> **Needs your review** — same surname, a related first name (a known short form, or a
-> spelling variant like *Mehmet* / *Mehmed*), and the same employer or mail domain, but no
-> matching email or phone.
-
-Review groups are shown separately and **never removed from the export** unless you press
-*Same person*. So recall costs you a decision, never a contact.
-
-The bar is deliberately narrow. The surname must match exactly, because "Ahmet Arslan" and
-"Ahmet Aslan" are two ordinary surnames rather than a typo of each other. First names must
-either be a known pair (Bob/Robert, Kate/Katherine, Mehmet/Muhammet) or differ only at the
-end — *Selin* and *Pelin* differ at the start and are two different people. On a synthetic
-1,000-contact directory where everyone shares one employer and every person is distinct,
-this produces zero review groups.
-
-The known-pair table covers short forms within a language and the same name across
-languages: *Guillermo*/*William*, *Juan*/*John*, *Katarzyna*/*Katherine*. Rows sharing a
-name are merged, so *Katarina* and *Kate* meet through *Katherine* even though they are
-listed separately. Lookups fold diacritics, which is what lets an imported *Hüseyin* reach
-the table's ASCII entry — the stored contact name is never altered.
-
-Two `first.last@` addresses are compared component by component, so `mustafa.yilmaz@` and
-`mustafa.yildirim@` are *different people*, while `j.smith@` and `john.smith@` are the same one.
-
-**Conflict rule:** if both rows carry a surname and the surnames clearly differ, the pair is
-rejected outright — even on an identical email. This is what stops a shared `info@` inbox and a
-shared switchboard number from merging colleagues.
-
-Once a pair passes, it is scored as a weighted average over the fields both rows populate:
-
-| Field | Weight |
-|---|---|
-| Email | 0.35 |
-| Phone | 0.25 |
-| Last name | 0.15 |
-| Company | 0.15 |
-| First name | 0.10 |
-
-A differing email, phone or company is treated as *no evidence* rather than evidence against —
-a person legitimately has a work address and a personal one. Fuzzy string scores below 0.7 are
-treated as zero, so an unrelated surname contributes nothing instead of a misleading 0.45.
-
-Pairs scoring **≥ 50** are linked, then merged transitively via union-find.
-
-| Score | Level |
-|---|---|
-| ≥ 90 | 🔴 certain |
-| ≥ 70 | 🟠 likely |
-| ≥ 50 | 🟡 possible |
-
-**Kept record** = the contact with the most non-empty fields; ties go to the row carrying more
-detail ("Jonathan" over "Jon"), then to the earliest row. On export only that row survives from
-each group. Contacts in dismissed groups, and contacts in no group, are always kept as-is.
-
-The results screen lists **merge suggestions** — values present on a discarded row but missing
-from the kept one — so you can carry them over in HubSpot before deleting anything.
-
-### On the demo data
-
-`src/data/demo-hubspot-contacts.csv` holds 15 contacts with 7 deliberately planted duplicate
-pairs. All **7 are found**: six as confirmed duplicates, and `Bob Johnson` / `Robert Johnson`
-in the review tier. Exporting without confirming keeps 9 of 15 rows (both Johnsons); pressing
-*Same person* first makes it 8.
-
-## Known limitations
-
-Read these before trusting the output on a real list.
-
-- **A duplicate with no shared email or phone is never merged automatically.** If the names line
-  up it appears in the review tier; otherwise it is missed. That is the deliberate trade-off: the
-  tool prefers missing a duplicate over deleting a real contact.
-- **The nickname list is English-first**, with a handful of Turkish short forms. Unusual pairs need
-  adding to `NICKNAME_GROUPS` in `matcher.ts`.
-- **Scanning is fast but not free.** About 0.3 s for 10,000 contacts and 7 s for 50,000. The scan
-  runs in a Web Worker, so the page stays responsive and can be cancelled, and a progress bar shows
-  how far it has got. Sending the rows to the worker costs roughly 0.3 s at 50,000 rows.
-- **An email column is required** to start a scan.
-- **Non-Latin company names are ignored** for scoring. Company names are reduced to Latin letters
-  and digits, so a CJK/Cyrillic/Arabic-only name contributes 0 rather than a wrong score.
-- **A married-name change looks like a conflict.** Two rows for the same person under different
-  surnames are rejected unless the email or phone matches exactly.
-- **Nothing is merged for you.** The export keeps one row per group and drops the rest; it does not
-  combine values across rows. **Review before re-importing anything into HubSpot.**
-- **A column literally named `__proto__` loses its values.** It no longer crashes the scan, but
-  papaparse cannot store that key, so the column exports empty.
+The CI workflow runs every command above.
 
 ## Project structure
 
-```
-src/
-  core/
-    matcher.ts     identifier gate, review tier, scoring, blocking, grouping
-    csv.ts         parsing (papaparse), column detection, normalisation
-    export.ts      cleaned-CSV generation, injection-safe escaping, download
-    scan.worker.ts runs the scan off the main thread and reports progress
-    types.ts       shared types
-  App.tsx        upload → mapping → scanning → results flow
-  ErrorBoundary.tsx
-  App.css
-  data/          demo CSV (inlined into the bundle at build time)
-tests/
-  matcher.test.ts
+```text
+index.html                 static marketing page
+app/index.html             checker entry point
+public/privacy/            privacy note
+public/limitations/        product limitations
+src/App.tsx                upload, mapping, review and export flow
+src/core/csv.ts            CSV parsing and column mapping
+src/core/matcher.ts        blocking, scoring and grouping
+src/core/export.ts         reviewed CSV and audit report
+src/core/scan.worker.ts    cancellable browser worker
+tests/                     unit, regression and browser tests
+scripts/benchmark.ts       repeatable performance harness
 ```
 
-Stack: React 19, TypeScript, Vite, papaparse, vitest. Deployed as a static site on Vercel.
+## Evidence and limitations
 
-## Contributing
+The checked-in demo contains 15 rows with six identifier-based duplicate groups
+and one name-only review group. A regression test verifies the complete path.
 
-Run `npm run test` and `npm run build` before committing. When touching `matcher.ts`, re-run the demo CSV and confirm the group count hasn't regressed — scoring changes are easy to make and hard to notice.
+`benchmarks/latest.json` records performance from the machine that last ran the
+benchmark. It does not promise the same timing on every browser or device.
+
+No real or safely anonymized labeled contact corpus is checked in. Do not claim
+a precision, recall or accuracy rate until an authorized evaluation is complete.
+See [evaluation](docs/EVALUATION.md) and [known limitations](public/limitations/index.html).
+
+## Feedback
+
+Use [GitHub Issues](https://github.com/Eyyupisakarakasli/dedupesafe/issues)
+with invented sample rows. Never attach a contact export or personal data.
+
+## Trademark notice
+
+HubSpot is a trademark of HubSpot, Inc. DedupeSafe is independent of HubSpot,
+Inc. and is not authorized, endorsed, sponsored, affiliated with or otherwise
+approved by HubSpot, Inc. See the [brand decision](docs/BRAND-AND-DOMAIN.md).
 
 ## License
 

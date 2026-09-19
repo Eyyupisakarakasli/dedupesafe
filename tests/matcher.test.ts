@@ -4,8 +4,8 @@ import {
   compareContacts, findDuplicateGroups,
 } from '../src/core/matcher'
 import { detectHubSpotMapping, normalizeContacts, looksLikeContactExport } from '../src/core/csv'
-import { buildMergeSuggestions, exportCleanedCSV } from '../src/core/export'
-import type { Contact } from '../src/core/types'
+import { buildMergeSuggestions, exportAuditCSV, exportCleanedCSV } from '../src/core/export'
+import type { Contact, DuplicateGroup } from '../src/core/types'
 
 function makeContact(overrides: Partial<Contact> & { rowIndex: number }): Contact {
   return { email: '', firstName: '', lastName: '', phone: '', company: '', raw: {}, ...overrides }
@@ -487,6 +487,31 @@ describe('buildMergeSuggestions', () => {
     const b = makeContact({ email: 'x@x.com', firstName: 'A', rowIndex: 1 })
     const { groups } = findDuplicateGroups([a, b])
     expect(buildMergeSuggestions(groups[0])).toHaveLength(0)
+  })
+})
+
+describe('exportAuditCSV', () => {
+  it('records merge, keep-both and unreviewed decisions separately', () => {
+    const makeGroup = (id: string, row: number): DuplicateGroup => {
+      const contacts = [
+        makeContact({ email: `${id}-a@example.com`, rowIndex: row }),
+        makeContact({ email: `${id}-b@example.com`, rowIndex: row + 1 }),
+      ]
+      return {
+        id,
+        contacts,
+        masterContact: contacts[0],
+        pairs: [],
+        riskScore: 80,
+        riskLevel: 'likely',
+      }
+    }
+    const groups = [makeGroup('merge-me', 0), makeGroup('keep-me', 2), makeGroup('review-me', 4)]
+    const csv = exportAuditCSV(groups, new Set(['merge-me']), new Set(['keep-me']))
+
+    expect(csv).toContain('merge-me,merge')
+    expect(csv).toContain('keep-me,keep-both')
+    expect(csv).toContain('review-me,unreviewed')
   })
 })
 

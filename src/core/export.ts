@@ -76,6 +76,48 @@ export function buildMergeSuggestions(group: DuplicateGroup): string[] {
   return suggestions
 }
 
+export type GroupDecision = 'merge' | 'keep-both' | 'unreviewed'
+
+/**
+ * Produce a separate audit trail for every candidate group. The report never
+ * contains fields outside the five values already shown in the review UI.
+ */
+export function exportAuditCSV(
+  groups: DuplicateGroup[],
+  confirmedIds: ReadonlySet<string>,
+  dismissedIds: ReadonlySet<string>,
+): string {
+  const columns = [
+    'Group ID', 'Decision', 'Confidence', 'Row', 'Selected master',
+    'Email', 'First name', 'Last name', 'Phone', 'Company', 'Merge suggestions',
+  ]
+  const lines = [columns.map(escapeCell).join(',')]
+
+  for (const group of groups) {
+    const decision: GroupDecision = confirmedIds.has(group.id)
+      ? 'merge'
+      : dismissedIds.has(group.id) ? 'keep-both' : 'unreviewed'
+    const suggestions = buildMergeSuggestions(group).join(' | ')
+    for (const contact of group.contacts) {
+      lines.push([
+        group.id,
+        decision,
+        group.riskLevel === 'review' ? 'name match only' : `${group.riskScore}% ${group.riskLevel}`,
+        String(contact.rowIndex + 2),
+        contact.rowIndex === group.masterContact.rowIndex ? 'yes' : 'no',
+        contact.email,
+        contact.firstName,
+        contact.lastName,
+        contact.phone,
+        contact.company,
+        suggestions,
+      ].map(escapeCell).join(','))
+    }
+  }
+
+  return '\uFEFF' + lines.join('\r\n')
+}
+
 export function downloadFile(content: string, filename: string, mime = 'text/csv;charset=utf-8') {
   const blob = new Blob([content], { type: mime })
   const url = URL.createObjectURL(blob)

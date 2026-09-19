@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Limitations | DedupeSafe</title>
+    <meta name="description" content="Known matching and export limitations in DedupeSafe." />
+    <link rel="canonical" href="https://dedupesafe.vercel.app/limitations/" />
+    <link rel="stylesheet" href="/landing.css" />
+  </head>
+  <body>
+    <main class="legal-page">
+      <a class="back-link" href="/">← DedupeSafe</a>
+      <h1>Known limitations</h1>
+      <p>DedupeSafe finds review candidates. It cannot prove that two records describe the same person.</p>
+      <ul>
+        <li>A contact pair with no shared email, phone, surname, company or known name variant may be missed.</li>
+        <li>Name-variant coverage is incomplete and stronger in English than in other languages.</li>
+        <li>Different surnames can represent a legitimate name change. The matcher treats them conservatively.</li>
+        <li>Non-Latin company names do not contribute to the company similarity score.</li>
+        <li>The export collapses only groups you approve. It keeps one complete row and produces a separate audit report; it does not update records inside HubSpot.</li>
+        <li>The checker requires an email column and accepts CSV files up to 50 MB.</li>
+      </ul>
+      <p>Review every approved group and retain the original export before importing any result.</p>
+    </main>
+  </body>
+</html>

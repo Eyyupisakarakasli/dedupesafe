@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Privacy | DedupeSafe</title>
+    <meta name="description" content="How DedupeSafe keeps contact CSV files in the browser and limits measurement to ordinary page requests." />
+    <link rel="canonical" href="https://dedupesafe.vercel.app/privacy/" />
+    <link rel="stylesheet" href="/landing.css" />
+  </head>
+  <body>
+    <main class="legal-page">
+      <a class="back-link" href="/">← DedupeSafe</a>
+      <h1>Privacy</h1>
+      <p>Last updated: September 19, 2026.</p>
+      <h2>The checker does not upload your CSV</h2>
+      <p>DedupeSafe parses and compares contacts inside your browser. The checker has no account system, database, analytics script or contact-data API. Its Content Security Policy blocks runtime network connections with <code>connect-src 'none'</code>.</p>
+      <h2>What the hosting provider can record</h2>
+      <p>Like any hosted website, Vercel can record ordinary requests for pages and static files. Those request logs may include the requested path, time, browser information and network address. DedupeSafe does not send your CSV contents, contact count, mapping, match results or export decisions with those requests.</p>
+      <h2>Downloads</h2>
+      <p>The cleaned CSV and audit report are created in browser memory and downloaded directly to your device.</p>
+      <h2>Support</h2>
+      <p>Public feedback submitted through GitHub Issues is visible to everyone. Do not attach contact exports or personal data to an issue.</p>
+      <p><a href="https://github.com/Eyyupisakarakasli/dedupesafe/issues">Open the public feedback tracker</a></p>
+    </main>
+  </body>
+</html>

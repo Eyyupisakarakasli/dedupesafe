@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { detectHubSpotMapping, looksLikeContactExport, normalizeContacts, parseCSV } from './core/csv'
 import { findDuplicateGroups } from './core/matcher'
-import { buildMergeSuggestions, downloadFile, exportCleanedCSV } from './core/export'
+import { buildMergeSuggestions, downloadFile, exportAuditCSV, exportCleanedCSV } from './core/export'
 import type { ColumnMapping, Contact, DedupeField, DuplicateGroup, ParseResult } from './core/types'
 import type { ScanResponse } from './core/scan.worker'
 import demoCsvText from './data/demo-hubspot-contacts.csv?raw'
@@ -98,6 +98,15 @@ export default function App() {
     void handleFile(new File([demoCsvText], 'demo-hubspot-contacts.csv', { type: 'text/csv' }))
   }, [handleFile])
 
+  useEffect(() => {
+    if (step === 'upload' && new URLSearchParams(location.search).get('demo') === '1') {
+      // The URL is an external navigation signal; loading its bundled demo is
+      // the state synchronization this effect exists to perform.
+      // oxlint-disable-next-line react/set-state-in-effect
+      handleLoadDemo()
+    }
+  }, [handleLoadDemo, step])
+
   const handleStartScan = useCallback(() => {
     if (!parseResult || !mapping.email) return
     setError(null)
@@ -187,6 +196,14 @@ export default function App() {
     setConfirmedIds(prev => new Set(prev).add(id))
   }, [])
 
+  const unconfirmGroup = useCallback((id: string) => {
+    setConfirmedIds(prev => {
+      const next = new Set(prev)
+      next.delete(id)
+      return next
+    })
+  }, [])
+
   if (step === 'upload') {
     return (
       <UploadStep
@@ -218,8 +235,9 @@ export default function App() {
     const pct = Math.round(progress * 100)
     return (
       <div className="app-container">
+        <a className="app-brand" href="/">DedupeSafe</a>
         <header>
-          <h1>Scanning for duplicates…</h1>
+          <h1>Scanning for duplicate candidates…</h1>
           {parseResult && <p>Comparing {parseResult.totalRows.toLocaleString()} contacts</p>}
         </header>
         <div className="scanning-indicator" role="status" aria-live="polite">
@@ -236,6 +254,7 @@ export default function App() {
           <p className="sub">{pct > 0 ? `${pct}% complete` : 'Starting…'} · runs entirely on your device</p>
         </div>
         <button className="back-btn" onClick={cancelScan}>Cancel</button>
+        <ProductFooter />
       </div>
     )
   }
@@ -243,12 +262,14 @@ export default function App() {
   if (step === 'results' && result) {
     return (
       <ResultsStep
+        key={`${[...confirmedIds].sort().join('|')}::${[...dismissedIds].sort().join('|')}`}
         result={result}
         headers={parseResult?.headers}
         dismissedIds={dismissedIds}
         confirmedIds={confirmedIds}
         onDismiss={dismissGroup}
         onConfirm={confirmGroup}
+        onUnconfirm={unconfirmGroup}
         onRestore={restoreGroup}
         onRestoreAll={() => setDismissedIds(new Set())}
         onBack={resetAll}
@@ -272,9 +293,10 @@ function UploadStep({ dragOver, error, onDrop, onDragOver, onDragLeave, onFile, 
 }) {
   return (
     <div className="app-container">
+      <a className="app-brand" href="/">DedupeSafe</a>
       <header>
-        <h1>HubSpot Duplicate Contact Checker</h1>
-        <p>Upload your HubSpot contact CSV. Find duplicates that exact-match tools miss.</p>
+        <h1>Private duplicate contact review</h1>
+        <p>Check a HubSpot contact CSV locally. Nothing is removed until you approve it.</p>
       </header>
 
       <div
@@ -306,8 +328,9 @@ function UploadStep({ dragOver, error, onDrop, onDragOver, onDragLeave, onFile, 
       {error && <div className="error-msg" role="alert">{error}</div>}
 
       <div className="privacy-note">
-        Your file is processed locally. Nothing leaves your device.
+        Your file is processed locally. The checker cannot open a network connection.
       </div>
+      <ProductFooter />
     </div>
   )
 }
@@ -327,6 +350,7 @@ function MappingStep({ parseResult, mapping, error, onChange, onScan, onBack }: 
 
   return (
     <div className="app-container">
+      <a className="app-brand" href="/">DedupeSafe</a>
       <header>
         <h1>Confirm Column Mapping</h1>
         <p>{parseResult.totalRows.toLocaleString()} rows detected. Check each column below before scanning.</p>
@@ -401,6 +425,7 @@ function MappingStep({ parseResult, mapping, error, onChange, onScan, onBack }: 
           : 'Map the Email column to start'}
       </button>
       <button className="back-btn" onClick={onBack}>← Start over</button>
+      <ProductFooter />
     </div>
   )
 }
@@ -409,7 +434,7 @@ function MappingStep({ parseResult, mapping, error, onChange, onScan, onBack }: 
 
 export function ResultsStep({
   result, headers, dismissedIds, confirmedIds,
-  onDismiss, onConfirm, onRestore, onRestoreAll, onBack,
+  onDismiss, onConfirm, onUnconfirm, onRestore, onRestoreAll, onBack,
 }: {
   result: ScanResult
   headers: string[] | undefined
@@ -417,91 +442,100 @@ export function ResultsStep({
   confirmedIds: Set<string>
   onDismiss: (id: string) => void
   onConfirm: (id: string) => void
+  onUnconfirm: (id: string) => void
   onRestore: (id: string) => void
   onRestoreAll: () => void
   onBack: () => void
 }) {
-  // A review group the user confirmed behaves exactly like a detected duplicate.
-  const promoted = result.reviewGroups.filter(g => confirmedIds.has(g.id) && !dismissedIds.has(g.id))
-  const pendingReview = result.reviewGroups.filter(
-    g => !confirmedIds.has(g.id) && !dismissedIds.has(g.id))
-  const activeGroups = [...result.groups.filter(g => !dismissedIds.has(g.id)), ...promoted]
-  const dismissedGroups = [...result.groups, ...result.reviewGroups].filter(g => dismissedIds.has(g.id))
-  const highRisk = activeGroups.filter(g => g.riskLevel === 'certain' || g.riskLevel === 'likely')
-  const mediumRisk = activeGroups.filter(g => g.riskLevel === 'possible')
+  const [exportReviewOpen, setExportReviewOpen] = useState(false)
+  const [exportConfirmed, setExportConfirmed] = useState(false)
+  const allGroups = [...result.groups, ...result.reviewGroups]
+  const approvedGroups = allGroups.filter(g => confirmedIds.has(g.id) && !dismissedIds.has(g.id))
+  const pendingGroups = allGroups.filter(g => !confirmedIds.has(g.id) && !dismissedIds.has(g.id))
+  const dismissedGroups = allGroups.filter(g => dismissedIds.has(g.id))
 
-  // Contacts in a dismissed group are kept in full — they are not duplicates.
-  const keptWhole = [...dismissedGroups, ...pendingReview].flatMap(g => g.contacts)
-  const rowsAfterCleanup = result.uniqueContacts.length + keptWhole.length + activeGroups.length
+  // Unreviewed and rejected groups are always kept in full. Only an explicit
+  // merge decision can remove rows from the export.
+  const keptWhole = [...dismissedGroups, ...pendingGroups].flatMap(g => g.contacts)
+  const rowsAfterCleanup = result.uniqueContacts.length + keptWhole.length + approvedGroups.length
   const rowsRemoved = result.total - rowsAfterCleanup
 
   const handleDownload = () => {
     const csv = exportCleanedCSV(
-      activeGroups,
+      approvedGroups,
       [...result.uniqueContacts, ...keptWhole],
       result.contacts,
       headers,
     )
-    downloadFile(csv, 'hubspot-contacts-deduplicated.csv')
+    downloadFile(csv, 'dedupesafe-reviewed-contacts.csv')
+  }
+
+  const handleAuditDownload = () => {
+    const csv = exportAuditCSV(allGroups, confirmedIds, dismissedIds)
+    downloadFile(csv, 'dedupesafe-audit-report.csv')
   }
 
   return (
     <div className="app-container">
+      <a className="app-brand" href="/">DedupeSafe</a>
       <header>
         <h1>Scan Complete</h1>
         <p>
-          {result.total.toLocaleString()} contacts scanned · {activeGroups.length} duplicate
-          {activeGroups.length === 1 ? ' group' : ' groups'} found · {result.uniqueContacts.length.toLocaleString()} unique
+          {result.total.toLocaleString()} contacts scanned · {allGroups.length} candidate
+          {allGroups.length === 1 ? ' group' : ' groups'} · no rows removed yet
         </p>
       </header>
 
       <div className="summary-cards">
         <div className="summary-card high">
-          <span className="card-num">{highRisk.length}</span>
-          <span className="card-label">High Risk Groups</span>
+          <span className="card-num">{approvedGroups.length}</span>
+          <span className="card-label">Approved merges</span>
         </div>
         <div className="summary-card medium">
-          <span className="card-num">{mediumRisk.length}</span>
-          <span className="card-label">Medium Risk Groups</span>
+          <span className="card-num">{pendingGroups.length}</span>
+          <span className="card-label">Awaiting decision</span>
         </div>
         <div className="summary-card unique">
           <span className="card-num">{result.uniqueContacts.length.toLocaleString()}</span>
-          <span className="card-label">Unique Contacts</span>
+          <span className="card-label">No candidate match</span>
         </div>
       </div>
 
-      {activeGroups.length === 0 ? (
+      {allGroups.length === 0 ? (
         <div className="no-results">
-          <p>{dismissedGroups.length > 0
-            ? 'No duplicate groups left — you marked them all as not duplicates.'
-            : 'No duplicates found. Your contact list looks clean.'}</p>
+          <p>No duplicate candidates were found. The original rows remain unchanged.</p>
         </div>
-      ) : (
-        <div className="groups-list">
-          {activeGroups.map(group => (
-            <GroupCard key={group.id} group={group} onDismiss={onDismiss} />
-          ))}
-        </div>
-      )}
+      ) : null}
 
-      {pendingReview.length > 0 && (
+      {pendingGroups.length > 0 && (
         <div className="review-section">
           <div className="review-intro">
-            <strong>Needs your review ({pendingReview.length})</strong>
+            <strong>Needs your decision ({pendingGroups.length})</strong>
             <p>
-              Same surname and a related first name at the same company, but no matching
-              email or phone. These may be the same person under a nickname — or two
-              different people. <strong>Nothing here is removed from your export</strong> unless
-              you confirm it.
+              Compare each group. Choose <strong>Merge these</strong> only when the rows describe
+              the same person. Unreviewed groups and groups marked <strong>Keep both</strong> remain
+              intact in the export.
             </p>
           </div>
-          {pendingReview.map(group => (
+          {pendingGroups.map(group => (
             <GroupCard
               key={group.id}
               group={group}
               onDismiss={onDismiss}
               onConfirm={onConfirm}
             />
+          ))}
+        </div>
+      )}
+
+      {approvedGroups.length > 0 && (
+        <div className="approved-section">
+          <div className="review-intro">
+            <strong>Approved merges ({approvedGroups.length})</strong>
+            <p>Only these groups will collapse to one row. Undo any decision you are unsure about.</p>
+          </div>
+          {approvedGroups.map(group => (
+            <GroupCard key={group.id} group={group} onDismiss={onDismiss} onUnconfirm={onUnconfirm} />
           ))}
         </div>
       )}
@@ -516,7 +550,7 @@ export function ResultsStep({
             {dismissedGroups.map(group => (
               <li key={group.id}>
                 <span className="dismissed-label">
-                  {group.riskScore}% · {group.contacts.length} contacts ·{' '}
+                  {group.riskLevel === 'review' ? 'name match only' : `${group.riskScore}%`} · {group.contacts.length} contacts ·{' '}
                   {group.contacts.map(c => c.email || `${c.firstName} ${c.lastName}`.trim() || `row ${c.rowIndex + 2}`).join(', ')}
                 </span>
                 <button className="link-btn" onClick={() => onRestore(group.id)}>Restore</button>
@@ -527,30 +561,58 @@ export function ResultsStep({
         </div>
       )}
 
-      {(result.groups.length > 0 || promoted.length > 0) && (
-        <>
+      {allGroups.length > 0 && (
+        <div className="export-panel">
           <p className="export-summary">
             Export keeps <strong>{rowsAfterCleanup.toLocaleString()}</strong> of {result.total.toLocaleString()} contacts
             {rowsRemoved > 0
-              ? <> · removes {rowsRemoved.toLocaleString()} duplicate row{rowsRemoved === 1 ? '' : 's'}</>
+              ? <> · removes {rowsRemoved.toLocaleString()} approved duplicate row{rowsRemoved === 1 ? '' : 's'}</>
               : ' · nothing removed'}
           </p>
-          <button className="scan-btn" onClick={handleDownload}>Download Cleaned CSV</button>
-        </>
+          <div className="export-actions">
+            <button className="scan-btn" onClick={() => setExportReviewOpen(true)}>Review export</button>
+            <button className="back-btn" onClick={handleAuditDownload}>Download audit report</button>
+          </div>
+          {exportReviewOpen && (
+            <div className="export-review" role="region" aria-label="Final export confirmation">
+              <h2>Final export check</h2>
+              <dl>
+                <div><dt>Original rows</dt><dd>{result.total.toLocaleString()}</dd></div>
+                <div><dt>Approved groups</dt><dd>{approvedGroups.length}</dd></div>
+                <div><dt>Rows removed</dt><dd>{rowsRemoved.toLocaleString()}</dd></div>
+                <div><dt>Rows in export</dt><dd>{rowsAfterCleanup.toLocaleString()}</dd></div>
+              </dl>
+              <label className="confirm-export">
+                <input
+                  type="checkbox"
+                  checked={exportConfirmed}
+                  onChange={(event) => setExportConfirmed(event.target.checked)}
+                />
+                I reviewed every approved merge and kept the original CSV as a backup.
+              </label>
+              <button className="scan-btn" disabled={!exportConfirmed} onClick={handleDownload}>
+                Download reviewed CSV
+              </button>
+            </div>
+          )}
+        </div>
       )}
 
       <button className="back-btn" onClick={onBack}>← Upload another file</button>
+      <ProductFooter />
     </div>
   )
 }
 
-function GroupCard({ group, onDismiss, onConfirm }: {
+function GroupCard({ group, onDismiss, onConfirm, onUnconfirm }: {
   group: DuplicateGroup
   onDismiss: (id: string) => void
   onConfirm?: (id: string) => void
+  onUnconfirm?: (id: string) => void
 }) {
   const suggestions = buildMergeSuggestions(group)
   const isReview = group.riskLevel === 'review'
+  const isApproved = Boolean(onUnconfirm)
   const icon = isReview ? '🔎'
     : group.riskLevel === 'certain' ? '🔴'
     : group.riskLevel === 'likely' ? '🟠' : '🟡'
@@ -567,7 +629,7 @@ function GroupCard({ group, onDismiss, onConfirm }: {
         </div>
         <div className="group-actions">
           <span className="master-label">
-            {isReview ? 'Would keep: ' : 'Keeping: '}
+            {isApproved ? 'Will keep: ' : 'Suggested row: '}
             <strong>{group.masterContact.email || group.masterContact.firstName || '—'}</strong>
           </span>
           {onConfirm && (
@@ -576,16 +638,20 @@ function GroupCard({ group, onDismiss, onConfirm }: {
               onClick={() => onConfirm(group.id)}
               title="Treat these as the same person and collapse them on export"
             >
-              Same person
+              Merge these
             </button>
           )}
-          <button
-            className="dismiss-btn"
-            onClick={() => onDismiss(group.id)}
-            title="Keep all of these contacts — they are different people"
-          >
-            Not a duplicate
-          </button>
+          {onUnconfirm ? (
+            <button className="dismiss-btn" onClick={() => onUnconfirm(group.id)}>Undo merge</button>
+          ) : (
+            <button
+              className="dismiss-btn"
+              onClick={() => onDismiss(group.id)}
+              title="Keep all of these contacts as separate rows"
+            >
+              Keep both
+            </button>
+          )}
         </div>
       </div>
 
@@ -626,12 +692,23 @@ function GroupCard({ group, onDismiss, onConfirm }: {
 
       {suggestions.length > 0 && (
         <div className="merge-suggestions">
-          <strong>Before deleting, copy these into the kept record:</strong>
+          <strong>{isApproved ? 'Before importing, add these values to the kept record:' : 'If you merge, preserve these values:'}</strong>
           <ul>
             {suggestions.map((s, i) => <li key={i}>{s}</li>)}
           </ul>
         </div>
       )}
     </div>
+  )
+}
+
+function ProductFooter() {
+  return (
+    <footer className="product-footer">
+      <a href="/privacy/">Privacy</a>
+      <a href="/limitations/">Limitations</a>
+      <a href="https://github.com/Eyyupisakarakasli/dedupesafe/issues">Feedback</a>
+      <p>Independent of and not authorized, endorsed, sponsored or approved by HubSpot, Inc.</p>
+    </footer>
   )
 }

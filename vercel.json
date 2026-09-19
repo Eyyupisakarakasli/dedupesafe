@@ -2,6 +2,9 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
+  "redirects": [
+    { "source": "/app", "destination": "/app/", "permanent": true }
+  ],
   "headers": [
     {
       "source": "/(.*)",
