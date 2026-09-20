@@ -40,8 +40,9 @@ copy before importing the result.
 ## Privacy
 
 The checker has no backend, database, account or analytics script. It makes no
-runtime network requests. Its Content Security Policy includes
-`connect-src 'none'`, which blocks fetch, XHR, WebSocket and beacon connections.
+runtime network requests. The build gives it its own Content Security Policy
+with `connect-src 'none'`, which blocks fetch, XHR, WebSocket and beacon
+connections on top of the site-wide header.
 
 The marketing pages are a separate case. They count visits with Vercel Web
 Analytics, served from the site's own origin, and their policy allows
@@ -109,6 +110,7 @@ src/core/csv.ts            CSV parsing and column mapping
 src/core/matcher.ts        blocking, scoring and grouping
 src/core/export.ts         reviewed CSV and audit report
 src/core/scan.worker.ts    cancellable browser worker
+scripts/checker-csp.ts     the checker's stricter policy, added at build time
 tests/                     unit, regression and browser tests
 scripts/benchmark.ts       repeatable performance harness
 scripts/capture-demo.ts    records the demo GIF

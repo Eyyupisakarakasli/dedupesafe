@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+import { CHECKER_CSP, withCheckerCsp } from '../scripts/checker-csp'
 
 const read = (relative: string) =>
   readFileSync(fileURLToPath(new URL(`../${relative}`, import.meta.url)), 'utf8')
@@ -23,31 +24,30 @@ describe('content security policy', () => {
   const config = JSON.parse(read('vercel.json')) as {
     headers: { source: string; headers: { key: string; value: string }[] }[]
   }
-  const cspFor = (source: string) => {
-    const rule = config.headers.find(h => h.source === source)
-    if (!rule) throw new Error(`no header rule for ${source}`)
-    const csp = rule.headers.find(h => h.key === 'Content-Security-Policy')
-    if (!csp) throw new Error(`no policy for ${source}`)
-    return csp.value
-  }
 
-  it('keeps the checker unable to open any connection', () => {
-    expect(cspFor('/app/:path*')).toContain("connect-src 'none'")
+  it('sends one header rule that covers every path', () => {
+    // A split by path was tried and reverted: a source pattern that missed
+    // "/app/" served the checker with no security headers at all.
+    expect(config.headers).toHaveLength(1)
+    expect(config.headers[0].source).toBe('/(.*)')
   })
 
-  it('lets the marketing pages report a page view to their own origin', () => {
-    expect(cspFor('/')).toContain("connect-src 'self'")
-    expect(cspFor('/:path((?!app/).*)')).toContain("connect-src 'self'")
+  it('lets any page report a page view to its own origin', () => {
+    const header = config.headers[0].headers.find(h => h.key === 'Content-Security-Policy')
+    expect(header?.value).toContain("connect-src 'self'")
+    expect(header?.value).toContain("frame-ancestors 'none'")
   })
 
-  it('keeps every other protection on both policies', () => {
-    for (const rule of config.headers) {
-      const keys = rule.headers.map(h => h.key)
-      expect(keys).toContain('X-Content-Type-Options')
-      expect(keys).toContain('Strict-Transport-Security')
-      const csp = rule.headers.find(h => h.key === 'Content-Security-Policy')!.value
-      expect(csp).toContain("frame-ancestors 'none'")
-      expect(csp).toContain("object-src 'none'")
-    }
+  it('gives the checker a stricter policy of its own', () => {
+    expect(CHECKER_CSP).toContain("connect-src 'none'")
+    const built = withCheckerCsp('<html><head></head><body></body></html>', '/build/app/index.html')
+    expect(built).toContain("connect-src 'none'")
+  })
+
+  it('adds that policy to no other page, and never twice', () => {
+    const landing = withCheckerCsp('<html><head></head></html>', '/build/index.html')
+    expect(landing).not.toContain('Content-Security-Policy')
+    const checker = withCheckerCsp('<html><head></head></html>', '/build/app/index.html')
+    expect(withCheckerCsp(checker, '/build/app/index.html')).toBe(checker)
   })
 })

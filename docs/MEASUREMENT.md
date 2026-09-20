@@ -15,15 +15,20 @@ Vercel Web Analytics runs on the marketing pages only: `/`, `/privacy/` and
 `/_vercel/insights/script.js` and reports page views back to that origin, so no
 third-party host is involved.
 
-The Content Security Policy is split to keep this contained:
+Two policies keep this contained:
 
-| Path | `connect-src` |
-| --- | --- |
-| `/app/*` — the checker | `'none'` |
-| everything else — marketing pages | `'self'` |
+| Delivered as | Applies to | `connect-src` |
+| --- | --- | --- |
+| `vercel.json` header | every path | `'self'` |
+| meta tag from the build | the checker at `/app/` | `'none'` |
 
-The checker does not load the script, and its policy would block the report even
-if a future change added it by mistake.
+A browser enforces every policy it receives, so the checker is held to the
+stricter one. Path-scoped headers were tried first and reverted: a source
+pattern that did not match `/app/` left the checker with no security headers at
+all, which a deploy confirmed.
+
+The checker does not load the script, and its own policy would block the report
+even if a future change added it by mistake.
 
 Web Analytics must be enabled once in the Vercel project settings. Until it is,
 the script returns 404 and no page view is recorded.
