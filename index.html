@@ -8,6 +8,7 @@
     <link rel="canonical" href="https://dedupesafe.vercel.app/" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="stylesheet" href="/landing.css" />
+    <script defer src="/_vercel/insights/script.js"></script>
     <meta property="og:type" content="website" />
     <meta property="og:title" content="DedupeSafe | Private duplicate contact review" />
     <meta property="og:description" content="Find likely duplicate contacts in a HubSpot CSV export. Your file stays in your browser, and no row is removed without approval." />
@@ -89,7 +90,7 @@
         </div>
         <div>
           <p>The checker has no backend, account, analytics or runtime data API. Its Content Security Policy sets <code>connect-src 'none'</code>, which blocks fetch, XHR, WebSocket and beacon connections.</p>
-          <p>Marketing page and checker visits can be counted from ordinary web-server request logs. Those logs never contain your CSV, contact count or matching decisions.</p>
+          <p>This marketing page counts its own visits with Vercel Web Analytics, which sets no cookie and reports only aggregate page views. That script never runs on the checker, so it cannot observe your CSV, contact count or matching decisions.</p>
           <a href="/privacy/">Read the privacy note</a>
         </div>
       </section>

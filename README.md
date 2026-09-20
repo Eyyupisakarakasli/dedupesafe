@@ -38,13 +38,14 @@ copy before importing the result.
 ## Privacy
 
 The checker has no backend, database, account or analytics script. It makes no
-runtime network requests. The production Content Security Policy includes
+runtime network requests. Its Content Security Policy includes
 `connect-src 'none'`, which blocks fetch, XHR, WebSocket and beacon connections.
 
-The landing page, checker and demo URLs can be counted through ordinary Vercel
-request logs. Those requests never contain the CSV, contact count, mapping,
-match results or export decisions. See [measurement](docs/MEASUREMENT.md) and
-[privacy](public/privacy/index.html).
+The marketing pages are a separate case. They count visits with Vercel Web
+Analytics, served from the site's own origin, and their policy allows
+`connect-src 'self'` for that single purpose. No page count can contain the CSV,
+contact count, mapping, match results or export decisions. See
+[measurement](docs/MEASUREMENT.md) and [privacy](public/privacy/index.html).
 
 ## Matching rules
 
