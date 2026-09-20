@@ -6,7 +6,9 @@ the user approves a merge and confirms the final export.
 
 Live site: https://dedupesafe.vercel.app
 
-![DedupeSafe review screen](docs/product-screenshot.png)
+![A demo run: load the sample CSV, confirm the column mapping, approve one merge, keep another group, then confirm the export](docs/demo.gif)
+
+<sub>Recorded from the checked-in 15-row demo with `npm run demo`.</sub>
 
 ## Where it fits
 
@@ -90,6 +92,7 @@ npm run dev
 | `npm run lint` | Oxlint |
 | `npm run build` | TypeScript and production Vite build |
 | `npm run benchmark` | Deterministic 10k and 50k matching runs |
+| `npm run demo` | Re-records `docs/demo.gif` (needs a dev server and ffmpeg) |
 | `npm audit --audit-level=high` | Dependency audit |
 
 The CI workflow runs every command above.
@@ -108,6 +111,7 @@ src/core/export.ts         reviewed CSV and audit report
 src/core/scan.worker.ts    cancellable browser worker
 tests/                     unit, regression and browser tests
 scripts/benchmark.ts       repeatable performance harness
+scripts/capture-demo.ts    records the demo GIF
 ```
 
 ## Evidence and limitations

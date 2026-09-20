@@ -13,7 +13,8 @@
     "benchmark": "tsx scripts/benchmark.ts",
     "evaluate": "tsx scripts/evaluate.ts",
     "screenshot": "tsx scripts/capture-screenshot.ts",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "demo": "tsx scripts/capture-demo.ts"
   },
   "dependencies": {
     "papaparse": "^5.5.4",
