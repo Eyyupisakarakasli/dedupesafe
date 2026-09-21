@@ -26,7 +26,7 @@ Current HubSpot documentation:
 ## Safety model
 
 - Every candidate group starts as **unreviewed** and stays unchanged.
-- **Merge these** approves one group for collapse.
+- **Keep selected row** approves one group for collapse.
 - **Keep both** preserves every row in that group.
 - The final export requires a separate confirmation checkbox.
 - A second download records every group, row, confidence label and decision in

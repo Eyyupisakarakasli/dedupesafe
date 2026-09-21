@@ -79,30 +79,37 @@ export function buildMergeSuggestions(group: DuplicateGroup): string[] {
 export type GroupDecision = 'merge' | 'keep-both' | 'unreviewed'
 
 /**
- * Produce a separate audit trail for every candidate group. The report never
- * contains fields outside the five values already shown in the review UI.
+ * Preserve every source field for every candidate row, including rows removed
+ * from the reviewed export. Source columns have a numbered namespace so they
+ * cannot collide with metadata or with another source column's label.
  */
 export function exportAuditCSV(
   groups: DuplicateGroup[],
   confirmedIds: ReadonlySet<string>,
   dismissedIds: ReadonlySet<string>,
+  headers?: string[],
 ): string {
+  const sourceHeaders = [...new Set([
+    ...(headers ?? []),
+    ...groups.flatMap(g => g.contacts.flatMap(c => Object.keys(c.raw))),
+  ])]
   const columns = [
     'Group ID', 'Decision', 'Confidence', 'Row', 'Selected master',
     'Email', 'First name', 'Last name', 'Phone', 'Company', 'Merge suggestions',
+    ...sourceHeaders.map((header, index) => `Source ${index + 1}: ${header}`),
   ]
   const lines = [columns.map(escapeCell).join(',')]
 
   for (const group of groups) {
-    const decision: GroupDecision = confirmedIds.has(group.id)
-      ? 'merge'
-      : dismissedIds.has(group.id) ? 'keep-both' : 'unreviewed'
+    const decision: GroupDecision = dismissedIds.has(group.id)
+      ? 'keep-both'
+      : confirmedIds.has(group.id) ? 'merge' : 'unreviewed'
     const suggestions = buildMergeSuggestions(group).join(' | ')
     for (const contact of group.contacts) {
       lines.push([
         group.id,
         decision,
-        group.riskLevel === 'review' ? 'name match only' : `${group.riskScore}% ${group.riskLevel}`,
+        group.riskLevel === 'review' ? 'name match only' : `matching score ${group.riskScore}/100 ${group.riskLevel}`,
         String(contact.rowIndex + 2),
         contact.rowIndex === group.masterContact.rowIndex ? 'yes' : 'no',
         contact.email,
@@ -111,6 +118,8 @@ export function exportAuditCSV(
         contact.phone,
         contact.company,
         suggestions,
+        ...sourceHeaders.map(header => Object.prototype.hasOwnProperty.call(contact.raw, header)
+          ? contact.raw[header] ?? '' : ''),
       ].map(escapeCell).join(','))
     }
   }

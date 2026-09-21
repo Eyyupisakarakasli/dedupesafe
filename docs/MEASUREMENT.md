@@ -10,8 +10,8 @@ rows at all. Nothing was being measured.
 
 ## Current setup
 
-Vercel Web Analytics runs on the marketing pages only: `/`, `/privacy/` and
-`/limitations/`. The script is served from the site's own origin at
+Vercel Web Analytics runs on marketing pages only: `/`, `/privacy/`,
+`/limitations/` and the four generated campaign landing pages under `/for/`. The script is served from the site's own origin at
 `/_vercel/insights/script.js` and reports page views back to that origin, so no
 third-party host is involved.
 
@@ -30,8 +30,10 @@ all, which a deploy confirmed.
 The checker does not load the script, and its own policy would block the report
 even if a future change added it by mistake.
 
-Web Analytics must be enabled once in the Vercel project settings. Until it is,
-the script returns 404 and no page view is recorded.
+Web Analytics must be enabled in project settings, followed by a new deployment.
+A 404 alone does not prove the setting is off. On 21 September the API showed
+webAnalytics.enabledAt already set, while the previous production script still
+returned 404. Verify both the script response and actual pageview ingestion.
 
 ## What can be measured
 
@@ -45,8 +47,22 @@ the script returns 404 and no page view is recorded.
 - CSV row counts, mapped column names, duplicate candidates or decisions
 - downloaded CSV contents
 
-A channel can still be attributed by giving each post its own query string, for
-example `/?from=reddit`, which arrives in the page address Web Analytics records.
+Do not rely on `?from=reddit` for attribution. The current team is on Hobby;
+UTM reporting requires Web Analytics Plus or Enterprise. Use distinct page paths:
+
+- `/for/consultants/reddit/`
+- `/for/consultants/community/`
+- `/for/owners/reddit/`
+- `/for/owners/community/`
+
+Vite generates these from the landing HTML. They return their own page without
+redirecting to `/`, share the root canonical, and have noindex. Compare page
+views by path; this measures visits to a campaign link, not verified membership
+in a segment. Forwarded links can cross channels. Record reported segment and
+source separately in qualitative feedback. Pageviews do not prove reading or
+checker completion. Keep QA visits separate from subsequent campaign counts.
+
+Reference: https://vercel.com/docs/analytics/limits-and-pricing
 
 If deeper product analytics ever become necessary, host the marketing site
 separately and keep the checker origin under its current policy. Do not relax the

@@ -19,7 +19,7 @@
         <li>Name-variant coverage is incomplete and stronger in English than in other languages.</li>
         <li>Different surnames can represent a legitimate name change. The matcher treats them conservatively, and only accepts the pair when both rows carry the same private email address.</li>
         <li>Non-Latin company names do not contribute to the company similarity score.</li>
-        <li>The export collapses only groups you approve. It keeps one complete row and produces a separate audit report; it does not update records inside HubSpot.</li>
+        <li>The export collapses only groups you approve. It keeps one selected row without combining fields. The full audit report preserves every source field from candidate rows, including custom fields. It does not update records inside HubSpot; importing fewer rows does not remove existing portal duplicates.</li>
         <li>The checker requires an email column and accepts CSV files up to 50 MB.</li>
       </ul>
       <p>Review every approved group and retain the original export before importing any result.</p>

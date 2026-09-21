@@ -449,6 +449,7 @@ export function ResultsStep({
 }) {
   const [exportReviewOpen, setExportReviewOpen] = useState(false)
   const [exportConfirmed, setExportConfirmed] = useState(false)
+  const [auditStarted, setAuditStarted] = useState(false)
   const allGroups = [...result.groups, ...result.reviewGroups]
   const approvedGroups = allGroups.filter(g => confirmedIds.has(g.id) && !dismissedIds.has(g.id))
   const pendingGroups = allGroups.filter(g => !confirmedIds.has(g.id) && !dismissedIds.has(g.id))
@@ -461,6 +462,7 @@ export function ResultsStep({
   const rowsRemoved = result.total - rowsAfterCleanup
 
   const handleDownload = () => {
+    if (!exportConfirmed || (rowsRemoved > 0 && !auditStarted)) return
     const csv = exportCleanedCSV(
       approvedGroups,
       [...result.uniqueContacts, ...keptWhole],
@@ -471,8 +473,9 @@ export function ResultsStep({
   }
 
   const handleAuditDownload = () => {
-    const csv = exportAuditCSV(allGroups, confirmedIds, dismissedIds)
+    const csv = exportAuditCSV(allGroups, confirmedIds, dismissedIds, headers)
     downloadFile(csv, 'dedupesafe-audit-report.csv')
+    setAuditStarted(true)
   }
 
   return (
@@ -489,7 +492,7 @@ export function ResultsStep({
       <div className="summary-cards">
         <div className="summary-card high">
           <span className="card-num">{approvedGroups.length}</span>
-          <span className="card-label">Approved merges</span>
+          <span className="card-label">Approved groups</span>
         </div>
         <div className="summary-card medium">
           <span className="card-num">{pendingGroups.length}</span>
@@ -512,7 +515,7 @@ export function ResultsStep({
           <div className="review-intro">
             <strong>Needs your decision ({pendingGroups.length})</strong>
             <p>
-              Compare each group. Choose <strong>Merge these</strong> only when the rows describe
+              Compare each group. Choose <strong>Keep selected row</strong> only when the rows describe
               the same person. Unreviewed groups and groups marked <strong>Keep both</strong> remain
               intact in the export.
             </p>
@@ -531,7 +534,7 @@ export function ResultsStep({
       {approvedGroups.length > 0 && (
         <div className="approved-section">
           <div className="review-intro">
-            <strong>Approved merges ({approvedGroups.length})</strong>
+            <strong>Approved groups ({approvedGroups.length})</strong>
             <p>Only these groups will collapse to one row. Undo any decision you are unsure about.</p>
           </div>
           {approvedGroups.map(group => (
@@ -550,7 +553,7 @@ export function ResultsStep({
             {dismissedGroups.map(group => (
               <li key={group.id}>
                 <span className="dismissed-label">
-                  {group.riskLevel === 'review' ? 'name match only' : `${group.riskScore}%`} · {group.contacts.length} contacts ·{' '}
+                  {group.riskLevel === 'review' ? 'name match only' : `${group.riskScore}/100 score`} · {group.contacts.length} contacts ·{' '}
                   {group.contacts.map(c => c.email || `${c.firstName} ${c.lastName}`.trim() || `row ${c.rowIndex + 2}`).join(', ')}
                 </span>
                 <button className="link-btn" onClick={() => onRestore(group.id)}>Restore</button>
@@ -576,6 +579,10 @@ export function ResultsStep({
           {exportReviewOpen && (
             <div className="export-review" role="region" aria-label="Final export confirmation">
               <h2>Final export check</h2>
+              <p>This export keeps the selected row from each approved group. It does not combine fields or merge records inside HubSpot. Every source field from candidate rows is preserved in the audit report.</p>
+              {rowsRemoved > 0 && <p>{auditStarted
+                ? 'Audit download started. Check that the file was saved before continuing.'
+                : 'Download the audit report before exporting fewer rows. Keep it private: it contains all original fields, including custom fields.'}</p>}
               <dl>
                 <div><dt>Original rows</dt><dd>{result.total.toLocaleString()}</dd></div>
                 <div><dt>Approved groups</dt><dd>{approvedGroups.length}</dd></div>
@@ -588,9 +595,9 @@ export function ResultsStep({
                   checked={exportConfirmed}
                   onChange={(event) => setExportConfirmed(event.target.checked)}
                 />
-                I reviewed every approved merge and kept the original CSV as a backup.
+                I reviewed every approved group and kept the original CSV as a backup.
               </label>
-              <button className="scan-btn" disabled={!exportConfirmed} onClick={handleDownload}>
+              <button className="scan-btn" disabled={!exportConfirmed || (rowsRemoved > 0 && !auditStarted)} onClick={handleDownload}>
                 Download reviewed CSV
               </button>
             </div>
@@ -623,7 +630,7 @@ function GroupCard({ group, onDismiss, onConfirm, onUnconfirm }: {
         <div>
           <span className={`risk-badge ${group.riskLevel}`}>
             <span aria-hidden="true">{icon}</span>{' '}
-            {isReview ? 'name match only' : `${group.riskScore}% ${group.riskLevel}`}
+            {isReview ? 'name match only' : `${group.riskScore}/100 score ${group.riskLevel}`}
           </span>
           <span className="group-size">{group.contacts.length} contacts</span>
         </div>
@@ -638,11 +645,11 @@ function GroupCard({ group, onDismiss, onConfirm, onUnconfirm }: {
               onClick={() => onConfirm(group.id)}
               title="Treat these as the same person and collapse them on export"
             >
-              Merge these
+              Keep selected row
             </button>
           )}
           {onUnconfirm ? (
-            <button className="dismiss-btn" onClick={() => onUnconfirm(group.id)}>Undo merge</button>
+            <button className="dismiss-btn" onClick={() => onUnconfirm(group.id)}>Undo selection</button>
           ) : (
             <button
               className="dismiss-btn"
@@ -692,7 +699,7 @@ function GroupCard({ group, onDismiss, onConfirm, onUnconfirm }: {
 
       {suggestions.length > 0 && (
         <div className="merge-suggestions">
-          <strong>{isApproved ? 'Before importing, add these values to the kept record:' : 'If you merge, preserve these values:'}</strong>
+          <strong>{isApproved ? 'Other values to review in the full audit report:' : 'Other values to review in the full audit report:'}</strong>
           <ul>
             {suggestions.map((s, i) => <li key={i}>{s}</li>)}
           </ul>

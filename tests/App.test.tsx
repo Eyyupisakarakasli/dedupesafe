@@ -40,7 +40,7 @@ describe('ResultsStep export controls', () => {
       />,
     )
 
-    expect(html).toContain('Approved merges (1)')
+    expect(html).toContain('Approved groups (1)')
     expect(html).toContain('Review export')
     expect(html).toContain('removes 1 approved duplicate row')
   })
@@ -112,7 +112,7 @@ describe('ResultsStep export controls', () => {
 
     expect(html).toContain('Awaiting decision')
     expect(html).toContain('nothing removed')
-    expect(html).toContain('Merge these')
+    expect(html).toContain('Keep selected row')
     expect(html).toContain('Keep both')
   })
 })

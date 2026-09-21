@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>DedupeSafe | Private duplicate contact review for HubSpot exports</title>
-    <meta name="description" content="Review likely duplicate contacts in a HubSpot CSV export without uploading customer data. Every merge requires your approval." />
+    <meta name="description" content="Review likely duplicate contacts in a HubSpot CSV export without uploading customer data. Every row removal requires your approval." />
     <link rel="canonical" href="https://dedupesafe.vercel.app/" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="stylesheet" href="/landing.css" />
@@ -45,7 +45,7 @@
       <section class="hero">
         <div class="eyebrow">Private contact cleanup</div>
         <h1>Review duplicate contacts without uploading your CRM data.</h1>
-        <p class="lede">DedupeSafe checks a HubSpot contact export for matching emails, phone numbers, name variants and company records. You approve every merge. Your CSV stays in your browser.</p>
+        <p class="lede">DedupeSafe checks a HubSpot contact export for matching emails, phone numbers, name variants and company records. You approve every row removal. Your CSV stays in your browser.</p>
         <div class="hero-actions">
           <a class="primary" href="/app/">Check a CSV</a>
           <a class="secondary" href="/app/?demo=1">Run the 15-contact demo</a>
@@ -98,7 +98,7 @@
       <section class="section faq" aria-labelledby="faq-heading">
         <div><div class="eyebrow">Questions</div><h2 id="faq-heading">Before you use it</h2></div>
         <div>
-          <details><summary>Does it merge records in HubSpot?</summary><p>No. It reviews a CSV and returns another CSV. You decide what to import or change in HubSpot.</p></details>
+          <details><summary>Does it merge records in HubSpot?</summary><p>No. It keeps a selected row for each approved group in a new CSV; it does not combine fields. The full audit report preserves source values. Reimporting fewer rows does not delete or merge existing HubSpot contacts.</p></details>
           <details><summary>Will it remove possible matches automatically?</summary><p>No. Every group stays intact until you approve it. You must confirm the final export separately.</p></details>
           <details><summary>What can it miss?</summary><p>Contacts with no shared email, phone, surname or company signal may remain separate. Read the full limitations before using the output.</p></details>
           <details><summary>Is this a HubSpot product?</summary><p>No. DedupeSafe is an independent tool and is not authorized, endorsed, sponsored or approved by HubSpot, Inc.</p></details>
