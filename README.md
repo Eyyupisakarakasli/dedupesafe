@@ -124,8 +124,10 @@ and one name-only review group. A regression test verifies the complete path.
 `benchmarks/latest.json` records performance from the machine that last ran the
 benchmark. It does not promise the same timing on every browser or device.
 
-No real or safely anonymized labeled contact corpus is checked in. Do not claim
-a precision, recall or accuracy rate until an authorized evaluation is complete.
+An aggregate evaluation against a voter-derived benchmark is checked in; the
+raw names and locations are not. That evaluation tests name matching with
+locality context and blank email/phone fields. It is not evidence of general
+CRM precision, recall or accuracy. No labeled CRM contact corpus is checked in.
 See [evaluation](docs/EVALUATION.md) and [known limitations](public/limitations/index.html).
 
 ## Feedback
