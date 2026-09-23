@@ -31,7 +31,7 @@ test('service rehearsal preserves every unapproved source row and records decisi
   await auditDownload.saveAs(auditPath)
   const audit = parse(readFileSync(auditPath, 'utf8'))
   expect(audit.errors).toEqual([])
-  expect(new Set(audit.data.map(row => row.Decision))).toEqual(new Set(['merge', 'keep-both', 'unreviewed']))
+  expect(new Set(audit.data.map(row => row.Decision))).toEqual(new Set(['keep-one-row', 'keep-all-rows', 'unreviewed']))
   expect(audit.data).toHaveLength(14)
   await expect(download).toBeEnabled()
   const reviewedEvent = page.waitForEvent('download')
@@ -43,7 +43,7 @@ test('service rehearsal preserves every unapproved source row and records decisi
   expect(reviewed.errors).toEqual([])
   expect(reviewed.data).toHaveLength(14)
   expect(reviewed.meta.fields).toEqual(source.meta.fields)
-  const removedRows = audit.data.filter(row => row.Decision === 'merge' && row['Selected master'] === 'no').map(row => Number(row.Row) - 2)
+  const removedRows = audit.data.filter(row => row.Decision === 'keep-one-row' && row['Selected row'] === 'no').map(row => Number(row.Row) - 2)
   expect(removedRows).toHaveLength(1)
   expect(reviewed.data).toEqual(source.data.filter((_, index) => !removedRows.includes(index)))
   for (const row of audit.data) {

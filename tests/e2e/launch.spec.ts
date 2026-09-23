@@ -31,7 +31,7 @@ test('landing, upload, worker scan, decisions, audit and confirmed export', asyn
   const auditPath = await audit.path()
   expect(auditPath).not.toBeNull()
   const auditText = readFileSync(auditPath!, 'utf8')
-  expect(auditText).toContain(',merge,')
+  expect(auditText).toContain(',keep-one-row,')
   expect(auditText).toContain(',unreviewed,')
 
   await page.getByRole('button', { name: 'Review export' }).click()
