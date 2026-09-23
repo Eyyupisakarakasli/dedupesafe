@@ -4,7 +4,7 @@ import {
   compareContacts, findDuplicateGroups,
 } from '../src/core/matcher'
 import { detectHubSpotMapping, normalizeContacts, looksLikeContactExport } from '../src/core/csv'
-import { buildMergeSuggestions, exportAuditCSV, exportCleanedCSV } from '../src/core/export'
+import { exportAuditCSV, exportCleanedCSV } from '../src/core/export'
 import type { Contact, DuplicateGroup } from '../src/core/types'
 
 function makeContact(overrides: Partial<Contact> & { rowIndex: number }): Contact {
@@ -473,23 +473,6 @@ describe('exportCleanedCSV', () => {
   })
 })
 
-describe('buildMergeSuggestions', () => {
-  it('lists fields the kept record is missing', () => {
-    const a = makeContact({ email: 'dup@test.com', firstName: 'Alice', company: 'Acme', rowIndex: 0 })
-    const b = makeContact({ email: 'dup@test.com', firstName: 'Alice', lastName: 'Smith', phone: '+15550101234', rowIndex: 1 })
-    const { groups } = findDuplicateGroups([a, b])
-    expect(groups.length).toBeGreaterThan(0)
-    expect(buildMergeSuggestions(groups[0]).length).toBeGreaterThan(0)
-  })
-
-  it('returns nothing when the records agree', () => {
-    const a = makeContact({ email: 'x@x.com', firstName: 'A', rowIndex: 0 })
-    const b = makeContact({ email: 'x@x.com', firstName: 'A', rowIndex: 1 })
-    const { groups } = findDuplicateGroups([a, b])
-    expect(buildMergeSuggestions(groups[0])).toHaveLength(0)
-  })
-})
-
 describe('exportAuditCSV', () => {
   it('records merge, keep-both and unreviewed decisions separately', () => {
     const makeGroup = (id: string, row: number): DuplicateGroup => {
@@ -509,8 +492,8 @@ describe('exportAuditCSV', () => {
     const groups = [makeGroup('merge-me', 0), makeGroup('keep-me', 2), makeGroup('review-me', 4)]
     const csv = exportAuditCSV(groups, new Set(['merge-me']), new Set(['keep-me']))
 
-    expect(csv).toContain('merge-me,merge')
-    expect(csv).toContain('keep-me,keep-both')
+    expect(csv).toContain('merge-me,keep-one-row')
+    expect(csv).toContain('keep-me,keep-all-rows')
     expect(csv).toContain('review-me,unreviewed')
   })
 })

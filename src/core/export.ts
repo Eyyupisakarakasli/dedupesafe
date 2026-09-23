@@ -1,4 +1,5 @@
 import type { Contact, DuplicateGroup } from './types'
+import { activeContacts, effectiveGroup, sourceFields } from './review-state'
 
 /**
  * Neutralise CSV formula injection (CWE-1236). Spreadsheets execute a cell that
@@ -29,12 +30,18 @@ export function exportCleanedCSV(
   allContacts: Contact[],
   headers?: string[],
 ): string {
-  const membersInGroups = new Set(groups.flatMap(g => g.contacts.map(c => c.rowIndex)))
-  const deduplicated = [
-    ...groups.map(g => g.masterContact),
-    ...uniqueContacts.filter(c => !membersInGroups.has(c.rowIndex)),
-  ].sort((a, b) => a.rowIndex - b.rowIndex)
-
+  const approved = groups.filter(group => !group.needsSelection && activeContacts(group).length >= 2)
+  const membersInGroups = new Set(approved.flatMap(group => activeContacts(group).map(contact => contact.rowIndex)))
+  const protectedRows = groups.flatMap(group => group.needsSelection
+    ? group.contacts
+    : group.contacts.filter(contact => group.excludedRows?.includes(contact.rowIndex)))
+  const output = [
+    ...approved.map(group => group.masterContact),
+    ...uniqueContacts.filter(contact => !membersInGroups.has(contact.rowIndex)),
+    ...protectedRows,
+  ]
+  const deduplicated = [...new Map(output.map(contact => [contact.rowIndex, contact])).values()]
+    .sort((a, b) => a.rowIndex - b.rowIndex)
   let columns = headers
   if (!columns || columns.length === 0) {
     const headerSet = new Set<string>()
@@ -53,31 +60,7 @@ export function exportCleanedCSV(
   return '﻿' + lines.join('\r\n')
 }
 
-export function buildMergeSuggestions(group: DuplicateGroup): string[] {
-  const suggestions: string[] = []
-  const master = group.masterContact
-
-  for (const contact of group.contacts) {
-    if (contact.rowIndex === master.rowIndex) continue
-    const diffs: string[] = []
-
-    if (contact.firstName && !master.firstName) diffs.push(`first name "${contact.firstName}"`)
-    if (contact.lastName && !master.lastName) diffs.push(`last name "${contact.lastName}"`)
-    if (contact.phone && !master.phone) diffs.push(`phone ${contact.phone}`)
-    if (contact.company && !master.company) diffs.push(`company "${contact.company}"`)
-    if (contact.email && contact.email !== master.email) diffs.push(`alternative email ${contact.email}`)
-
-    if (diffs.length > 0) {
-      const label = contact.email || `${contact.firstName} ${contact.lastName}`.trim() || `row ${contact.rowIndex + 2}`
-      suggestions.push(`From ${label}: add ${diffs.join(', ')}`)
-    }
-  }
-
-  return suggestions
-}
-
-export type GroupDecision = 'merge' | 'keep-both' | 'unreviewed'
-
+export type GroupDecision = 'keep-one-row' | 'keep-all-rows' | 'unreviewed' | 'keep-separate'
 /**
  * Preserve every source field for every candidate row, including rows removed
  * from the reviewed export. Source columns have a numbered namespace so they
@@ -94,30 +77,48 @@ export function exportAuditCSV(
     ...groups.flatMap(g => g.contacts.flatMap(c => Object.keys(c.raw))),
   ])]
   const columns = [
-    'Group ID', 'Decision', 'Confidence', 'Row', 'Selected master',
-    'Email', 'First name', 'Last name', 'Phone', 'Company', 'Merge suggestions',
+    'Group ID', 'Decision', 'Matching score', 'Row', 'Selected row',
+    'Email', 'First name', 'Last name', 'Phone', 'Company', 'Values to review', 'Audit schema version', 'Original group size', 'Row outcome', 'Review actions',
     ...sourceHeaders.map((header, index) => `Source ${index + 1}: ${header}`),
   ]
   const lines = [columns.map(escapeCell).join(',')]
 
   for (const group of groups) {
     const decision: GroupDecision = dismissedIds.has(group.id)
-      ? 'keep-both'
-      : confirmedIds.has(group.id) ? 'merge' : 'unreviewed'
-    const suggestions = buildMergeSuggestions(group).join(' | ')
+      ? 'keep-all-rows'
+      : confirmedIds.has(group.id) && !group.needsSelection ? 'keep-one-row' : 'unreviewed'
+    const omittedByRow = new Map<number, string[]>()
+    for (const { field, values } of sourceFields(group)) {
+      for (const row of values) {
+        if (!row.omitted) continue
+        const list = omittedByRow.get(row.rowIndex) ?? []
+        list.push(field + ': ' + row.value)
+        omittedByRow.set(row.rowIndex, list)
+      }
+    }
+    const compared = effectiveGroup(group)
     for (const contact of group.contacts) {
+      const separate = Boolean(group.excludedRows?.includes(contact.rowIndex))
+      const selected = !group.needsSelection && !separate && contact.rowIndex === group.masterContact.rowIndex
+      const rowDecision = separate ? 'keep-separate' : decision
+      const outcome = separate ? 'kept-separate' : decision === 'keep-one-row'
+        ? selected ? 'kept-selected' : 'removed' : 'kept'
       lines.push([
         group.id,
-        decision,
-        group.riskLevel === 'review' ? 'name match only' : `matching score ${group.riskScore}/100 ${group.riskLevel}`,
+        rowDecision,
+        group.riskLevel === 'review' ? 'name-based suggestion' : compared.pairs.length === 0 && group.excludedRows?.length ? 'No direct pair after exclusion' : String(compared.riskScore) + '/100 comparison score (not a probability)',
         String(contact.rowIndex + 2),
-        contact.rowIndex === group.masterContact.rowIndex ? 'yes' : 'no',
+        selected ? 'yes' : 'no',
         contact.email,
         contact.firstName,
         contact.lastName,
         contact.phone,
         contact.company,
-        suggestions,
+        separate ? '' : (omittedByRow.get(contact.rowIndex) ?? []).join(' | '),
+        '3',
+        String(group.contacts.length),
+        outcome,
+        (group.reviewActions ?? []).join(' | '),
         ...sourceHeaders.map(header => Object.prototype.hasOwnProperty.call(contact.raw, header)
           ? contact.raw[header] ?? '' : ''),
       ].map(escapeCell).join(','))
