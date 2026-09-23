@@ -1,0 +1,16 @@
+{
+  "measuredAt": "2026-09-23T12:57:59.461Z",
+  "browser": "153.0.8010.12",
+  "rows": 2000,
+  "groups": 1000,
+  "mountedCards": 5,
+  "measurement": "One local Chromium run; action through assertion and two animation frames. Includes automation overhead; scan includes matching. Not an isolated render or cross-device benchmark.",
+  "milliseconds": {
+    "scan": 444,
+    "approval": 81,
+    "pagination": 83,
+    "search": 49
+  },
+  "mobile320Overflow": false,
+  "pageErrors": []
+}
