@@ -2,13 +2,12 @@
 
 DedupeSafe reviews likely duplicate contacts in a HubSpot CSV export. It runs
 inside the browser, requires no account or API access, and removes no row until
-the user approves a merge and confirms the final export.
+the user approves keeping one selected source row and confirms the final export.
 
 Live site: https://dedupesafe.vercel.app
 
-![A demo run: load the sample CSV, confirm the column mapping, approve one merge, keep another group, then confirm the export](docs/demo.gif)
-
-<sub>Recorded from the checked-in 15-row demo with `npm run demo`.</sub>
+[Try the current 15-contact demo](https://dedupesafe.vercel.app/app/?demo=1).
+The archived `docs/demo.gif` predates the current review interface.
 
 ## Where it fits
 
@@ -28,14 +27,21 @@ Current HubSpot documentation:
 - Every candidate group starts as **unreviewed** and stays unchanged.
 - **Keep selected row** approves one group for collapse.
 - **Keep both** preserves every row in that group.
+- For larger groups, **Keep separate** preserves an individual record while
+  the remaining records can still be reviewed. Returning it revokes approval.
 - The final export requires a separate confirmation checkbox.
-- A second download records every group, row, confidence label and decision in
-  an audit CSV.
+- Before exporting fewer rows, the audit download must be started. Check that
+  it was saved: it contains all candidate source fields, including removed rows.
 - The original file is never modified.
 
-The export keeps the most complete row in each approved group. It does not merge
-missing values into that row. The review screen and audit report list values to
-copy before importing the result.
+The most complete row is the initial suggestion; the user can select another.
+The export keeps the selected source row without combining values. Changing
+the selection revokes that group's approval and resets export authorization.
+The review screen and audit report identify differing source values, including
+custom fields. See [audit schema 3](docs/audit-schema.md).
+
+Search, status filters and five-group pages help review the queue. Exports
+include all groups, including those hidden by search or filters.
 
 ## Privacy
 
@@ -54,12 +60,14 @@ contact count, mapping, match results or export decisions. See
 
 Automatic candidates require a shared identifier:
 
-| Identifier | Maximum confidence |
+| Identifier | Maximum comparison score |
 | --- | ---: |
-| identical email or `+tag` variant | 100% |
-| identical phone or matching long suffix | 100% |
-| compatible same-domain email local parts | 95% |
-| same handle across providers, with another agreeing field | 85% |
+| identical email or `+tag` variant | 100/100 |
+| identical phone or matching long suffix | 100/100 |
+| compatible same-domain email local parts | 95/100 |
+| same handle across providers, with another agreeing field | 85/100 |
+
+Scores compare field similarity; they are not probabilities of shared identity.
 
 Names and companies can strengthen an identifier. They cannot create an
 automatic candidate on their own. A separate review tier surfaces selected
@@ -96,7 +104,9 @@ npm run dev
 | `npm run demo` | Re-records `docs/demo.gif` (needs a dev server and ffmpeg) |
 | `npm audit --audit-level=high` | Dependency audit |
 
-The CI workflow runs every command above.
+CI runs unit tests, lint, build, browser tests, the matching benchmark and the
+dependency audit. Demo recording is manual. The separate review UI measurement
+is `node scripts/review-ui-benchmark.mjs` against a running local preview.
 
 ## Project structure
 
