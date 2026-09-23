@@ -32,89 +32,94 @@
     </script>
   </head>
   <body>
+    <a class="skip-link" href="#main">Skip to content</a>
     <header class="site-header">
-      <a class="brand" href="/" aria-label="DedupeSafe home"><span aria-hidden="true">DS</span>DedupeSafe</a>
+      <a class="brand" href="/" aria-label="DedupeSafe home"><span aria-hidden="true">d/</span>DedupeSafe</a>
       <nav aria-label="Main navigation">
-        <a href="#how-it-works">How it works</a>
-        <a href="#privacy">Privacy</a>
-        <a class="nav-cta" href="/app/">Open the checker</a>
+        <a href="#how-it-works">The process</a>
+        <a href="/privacy/">Privacy</a>
+        <a class="nav-cta" href="/app/">Open the checker <span aria-hidden="true">↗</span></a>
       </nav>
     </header>
-
-    <main>
+    <main id="main">
       <section class="hero">
-        <div class="eyebrow">Private contact cleanup</div>
-        <h1>Review duplicate contacts without uploading your CRM data.</h1>
-        <p class="lede">DedupeSafe checks a HubSpot contact export for matching emails, phone numbers, name variants and company records. You approve every row removal. Your CSV stays in your browser.</p>
-        <div class="hero-actions">
-          <a class="primary" href="/app/">Check a CSV</a>
-          <a class="secondary" href="/app/?demo=1">Run the 15-contact demo</a>
+        <div class="hero-copy">
+          <p class="eyebrow">CONTACT REVIEW / FOR HUBSPOT EXPORTS</p>
+          <h1>Review duplicate contacts.<br><span>Keep the right rows.</span></h1>
+          <p class="lede">Open a contact CSV, inspect the possible matches, and choose what to keep. You work on a copy in your browser. Your HubSpot records stay as they are.</p>
+          <div class="hero-actions">
+            <a class="primary" href="/app/">Check your CSV <span aria-hidden="true">↗</span></a>
+            <a class="text-link" href="/app/?demo=1">Try the sample file <span aria-hidden="true">→</span></a>
+          </div>
+          <p class="microcopy">Free to use · No account · Your CSV stays on your device</p>
         </div>
-        <p class="microcopy">Free. No account. No API access. No automatic deletion.</p>
+        <aside class="file-note" aria-label="Before you start">
+          <span class="file-icon" aria-hidden="true">.csv</span>
+          <h2>Start with an export.</h2>
+          <p>Include email, name, phone and company where available.</p>
+          <a href="/limitations/">Read the matching limits ↗</a>
+        </aside>
       </section>
 
-      <section class="proof-grid" aria-label="Product guarantees">
-        <article><strong>Local processing</strong><p>The tool reads your CSV in the browser. Its security policy blocks network connections from the checker.</p></article>
-        <article><strong>Human approval</strong><p>Possible matches stay untouched until you mark a group as the same person and confirm the export.</p></article>
-        <article><strong>Useful outside exact email</strong><p>Review work and personal addresses, local-part variants, phone matches and known first-name variants.</p></article>
+      <section class="review-example" aria-labelledby="example-heading">
+        <div class="example-bar"><h2 id="example-heading">A closer look at a possible match</h2><span>ILLUSTRATIVE SAMPLE</span></div>
+        <div class="example-body">
+          <div class="example-records">
+            <div class="record-caption"><span>CONTACT RECORDS</span><span>2 rows / 1 decision</span></div>
+            <div class="table-scroll desktop-comparison">
+              <table>
+                <caption class="sr-only">Two fictional contact rows with the same name and different email addresses</caption>
+                <thead><tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Company</th><th scope="col">Stage</th></tr></thead>
+                <tbody>
+                  <tr><td>John Smith</td><td>john@acme.example</td><td>Acme Corp</td><td><span class="stage">Customer</span></td></tr>
+                  <tr><td>John Smith</td><td>john.smith@acme.example</td><td>ACME Corporation</td><td><span class="stage">Lead</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <table class="mobile-comparison">
+              <caption class="sr-only">Compare two fictional contact records by field</caption>
+              <thead><tr><th scope="col">Field</th><th scope="col">Record A</th><th scope="col">Record B</th></tr></thead>
+              <tbody>
+                <tr><th scope="row">Name</th><td>John Smith</td><td>John Smith</td></tr>
+                <tr class="different-values"><th scope="row">Email</th><td>john@acme.example</td><td>john.smith@acme.example</td></tr>
+                <tr><th scope="row">Company</th><td>Acme Corp</td><td>ACME Corporation</td></tr>
+                <tr class="different-values"><th scope="row">Stage</th><td>Customer</td><td>Lead</td></tr>
+              </tbody>
+            </table>
+            <p class="record-note"><span aria-hidden="true">↳</span> Same name, different email. Worth reviewing before removing a row.</p>
+          </div>
+          <div class="example-decision">
+            <span class="status-label">AWAITING YOUR REVIEW</span>
+            <h3>Same person?</h3>
+            <p>Choose a row to keep, or keep both. The checker leaves undecided groups intact.</p>
+            <a href="/app/?demo=1">Review the interactive demo <span aria-hidden="true">→</span></a>
+          </div>
+        </div>
+        <div class="example-bottom"><span>Review first. Export when you are ready.</span><span>Email · Phone · Name variants · Company</span></div>
       </section>
 
-      <section class="section" id="how-it-works">
-        <div>
-          <div class="eyebrow">How it works</div>
-          <h2>Export, review, then decide.</h2>
-          <p>DedupeSafe does not connect to your portal or change a HubSpot record.</p>
-        </div>
+      <section class="workflow" id="how-it-works" aria-labelledby="workflow-heading">
+        <div class="section-heading"><p class="eyebrow">THE PROCESS</p><h2 id="workflow-heading">From an export to a reviewed file.</h2></div>
         <ol class="steps">
-          <li><span>1</span><div><strong>Export contacts as CSV</strong><p>Include email, first name, last name, phone and company when available.</p></div></li>
-          <li><span>2</span><div><strong>Review candidate groups</strong><p>The checker separates stronger identifiers from name-only suggestions.</p></div></li>
-          <li><span>3</span><div><strong>Approve the rows to collapse</strong><p>Unreviewed and rejected groups remain intact in the exported file.</p></div></li>
+          <li><span>01</span><div><h3>Open your CSV</h3><p>Choose an authorized contact export and confirm which columns to compare.</p></div></li>
+          <li><span>02</span><div><h3>Inspect the matches</h3><p>Compare the source rows. Approve a selected row or keep the whole group.</p></div></li>
+          <li><span>03</span><div><h3>Save the audit, then export</h3><p>Download the full audit before confirming a CSV with your approved removals.</p></div></li>
         </ol>
       </section>
 
-      <section class="comparison section">
-        <div>
-          <div class="eyebrow">Where it fits</div>
-          <h2>A CSV audit for teams that need a second look.</h2>
-        </div>
-        <div class="comparison-card">
-          <p>HubSpot automatically deduplicates new contacts by exact email across plans. Its duplicate manager can compare several contact properties, but requires Professional or Enterprise. DedupeSafe gives Free and Starter teams a local review step and lets any team inspect an export without granting another service CRM access.</p>
-          <a href="https://knowledge.hubspot.com/records/manage-duplicate-records">Read HubSpot's current duplicate-manager documentation</a>
-        </div>
+      <section class="boundaries" aria-labelledby="boundaries-heading">
+        <div><p class="eyebrow">BEFORE YOU BEGIN</p><h2 id="boundaries-heading">You decide what leaves the file.</h2><p>Matching is a suggestion. Review the details before treating two contacts as the same person.</p><a class="text-link" href="/limitations/">All limitations <span aria-hidden="true">↗</span></a></div>
+        <dl>
+          <div><dt>Your file stays local</dt><dd>The checker processes your CSV in your browser and runs without analytics. <a href="/privacy/">Privacy details</a></dd></div>
+          <div><dt>Keep a record of your decisions</dt><dd>The audit includes original values from candidate rows. The reviewed CSV keeps the selected row; it does not combine fields.</dd></div>
+          <div><dt>Your CRM stays unchanged</dt><dd>DedupeSafe does not connect to HubSpot. Reimporting a smaller CSV does not merge or delete existing CRM records.</dd></div>
+        </dl>
       </section>
-
-      <section class="section privacy" id="privacy">
-        <div>
-          <div class="eyebrow">Privacy by architecture</div>
-          <h2>Your contact file cannot leave through the checker.</h2>
-        </div>
-        <div>
-          <p>The checker has no backend, account, analytics or runtime data API. Its Content Security Policy sets <code>connect-src 'none'</code>, which blocks fetch, XHR, WebSocket and beacon connections.</p>
-          <p>This marketing page counts its own visits with Vercel Web Analytics, which sets no cookie and reports only aggregate page views. That script never runs on the checker, so it cannot observe your CSV, contact count or matching decisions.</p>
-          <a href="/privacy/">Read the privacy note</a>
-        </div>
-      </section>
-
-      <section class="section faq" aria-labelledby="faq-heading">
-        <div><div class="eyebrow">Questions</div><h2 id="faq-heading">Before you use it</h2></div>
-        <div>
-          <details><summary>Does it merge records in HubSpot?</summary><p>No. It keeps a selected row for each approved group in a new CSV; it does not combine fields. The full audit report preserves source values. Reimporting fewer rows does not delete or merge existing HubSpot contacts.</p></details>
-          <details><summary>Will it remove possible matches automatically?</summary><p>No. Every group stays intact until you approve it. You must confirm the final export separately.</p></details>
-          <details><summary>What can it miss?</summary><p>Contacts with no shared email, phone, surname or company signal may remain separate. Read the full limitations before using the output.</p></details>
-          <details><summary>Is this a HubSpot product?</summary><p>No. DedupeSafe is an independent tool and is not authorized, endorsed, sponsored or approved by HubSpot, Inc.</p></details>
-        </div>
-      </section>
-
-      <section class="section" id="feedback">
-        <div><h2>Tried your own export?</h2><p>Tell us what worked, which candidate was wrong, or what the checker missed.</p></div>
-        <div><p><a href="mailto:dedupesafe@outlook.com?subject=DedupeSafe%20feedback&amp;body=Role%20%28consultant%2Fagency%20or%20own%20HubSpot%20account%29%3A%0ADid%20you%20try%20an%20authorized%20real%20export%20or%20the%20demo%3F%0AWhat%20worked%2C%20matched%20incorrectly%2C%20or%20was%20missed%3F%0AWhere%20did%20you%20get%20stuck%3F%0AWhere%20did%20you%20find%20DedupeSafe%3F%0A%0APlease%20do%20not%20attach%20contact%20CSVs%2C%20audit%20reports%2C%20or%20customer%20personal%20data.%20Use%20invented%20examples%20if%20needed.">Email feedback to dedupesafe@outlook.com</a></p><p>If no email app opens, copy the address into your mail service. Do not send contact CSVs, audit reports or customer personal data. Use invented examples when describing a mismatch.</p></div>
-      </section>
-      <section class="final-cta">
-        <h2>Inspect the export before you touch the CRM.</h2>
-        <a class="primary" href="/app/">Open DedupeSafe</a>
+      <section class="feedback" id="feedback">
+        <h2>Found a match we missed?</h2>
+        <div><p>Tell us what went wrong using invented examples. Please do not send contact files or customer data.</p><a class="text-link" href="mailto:dedupesafe@outlook.com?subject=DedupeSafe%20feedback&amp;body=Role%20%28consultant%2Fagency%20or%20own%20HubSpot%20account%29%3A%0ADid%20you%20try%20an%20authorized%20real%20export%20or%20the%20demo%3F%0AWhat%20worked%2C%20matched%20incorrectly%2C%20or%20was%20missed%3F%0AWhere%20did%20you%20get%20stuck%3F%0AWhere%20did%20you%20find%20DedupeSafe%3F%0A%0APlease%20do%20not%20attach%20contact%20CSVs%2C%20audit%20reports%2C%20or%20customer%20personal%20data.%20Use%20invented%20examples%20if%20needed.">dedupesafe@outlook.com <span aria-hidden="true">↗</span></a></div>
       </section>
     </main>
-
     <footer>
       <div><strong>DedupeSafe</strong><p>Independent duplicate contact review for CSV exports.</p></div>
       <div class="footer-links"><a href="/privacy/">Privacy</a><a href="/limitations/">Limitations</a><a href="mailto:dedupesafe@outlook.com?subject=DedupeSafe%20feedback&amp;body=Role%20%28consultant%2Fagency%20or%20own%20HubSpot%20account%29%3A%0ADid%20you%20try%20an%20authorized%20real%20export%20or%20the%20demo%3F%0AWhat%20worked%2C%20matched%20incorrectly%2C%20or%20was%20missed%3F%0AWhere%20did%20you%20get%20stuck%3F%0AWhere%20did%20you%20find%20DedupeSafe%3F%0A%0APlease%20do%20not%20attach%20contact%20CSVs%2C%20audit%20reports%2C%20or%20customer%20personal%20data.%20Use%20invented%20examples%20if%20needed.">dedupesafe@outlook.com</a><a href="https://github.com/Eyyupisakarakasli/dedupesafe/issues">Public bug tracker</a><a href="https://github.com/Eyyupisakarakasli/dedupesafe">Source</a></div>
