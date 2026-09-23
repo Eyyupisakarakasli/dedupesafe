@@ -33,6 +33,10 @@ export interface DuplicateGroup {
   pairs: SimilarityResult[]
   riskScore: number
   riskLevel: string
+  /** Original membership is retained for the audit and restoring exclusions. */
+  excludedRows?: number[]
+  needsSelection?: boolean
+  reviewActions?: string[]
 }
 
 export interface ScanResult {
