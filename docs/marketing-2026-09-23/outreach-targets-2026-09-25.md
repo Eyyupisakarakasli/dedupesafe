@@ -1,6 +1,6 @@
 # İkinci dağıtım turu: hedef seçimi — 25 Eylül 2026
 
-Durum: araştırma tamamlandı; bu turda yeni yorum gönderilmedi. Kullanıcı Reddit ve diğer platformlarda yorumlarla devam etmeyi istedi, önce yerlerin bulunmasını belirtti. Aşağıdaki sıralama editoryal değerlendirmedir; erişim veya dönüşüm garantisi değildir. Yayın anında başlık, güncel kurallar, mevcut yorumlar ve hesabın erişimi tekrar okunmalı.
+Durum: ilk iki hedefe yorum gönderildi; [yayın kaydı](distribution-update-2026-09-25.md) ve [takip kontrolü](follow-up-2026-09-25.md) güncel durumu içerir. Aşağıdaki taslakları tekrar gönderme. Sıralama editoryal değerlendirmedir; erişim veya dönüşüm garantisi değildir. Yeni yayın öncesinde başlık, kurallar ve mevcut yorumları yeniden oku.
 
 ## İlk sıra
 
@@ -22,7 +22,7 @@ Teknik dayanak: https://knowledge.hubspot.com/records/manage-duplicate-records v
 
 Kaynak: https://www.linkedin.com/posts/elvis-obi-831754113_contact-company-data-cleanup-in-hubspot-activity-7492395567151611904-1AoX
 
-Doğrudan sayfa okundu. Yazar 47 kişilik spreadsheet temizleme ve şirket ilişkilendirme işini anlatıyor; sayfa yaklaşık 1 ay gösteriyor. Küçük dosya, danışman ve manuel inceleme açısından iyi öğrenme adayı; aktif ürün arayışı değil. İlk yorum yöntem sorusu olacak, satış bağlantısı eklenmeyecek. LinkedIn oturumu/yorum erişimi henüz doğrulanmadı.
+Doğrudan sayfa okundu. Yazar 47 kişilik spreadsheet temizleme ve şirket ilişkilendirme işini anlatıyor; sayfa yaklaşık 1 ay gösteriyor. Küçük dosya, danışman ve manuel inceleme açısından öğrenme adayı; aktif ürün arayışı değil. 25 Eylül'de yöntem sorusu ürün bağlantısı olmadan yayımlandı. Oturum ve yorum erişimi doğrulandı.
 
 Taslak:
 
