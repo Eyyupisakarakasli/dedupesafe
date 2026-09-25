@@ -1,4 +1,6 @@
-# Güncel görseller
+# Güncel görseller — 25 Eylül yenilemesi
+
+Studio tasarımıyla yerel production build üzerinde tüm ekranlar yeniden üretildi. 01 eşleme, 02 onaylanmamış Charlie grubu, 03 audit ve son onay öncesindeki export kontrolüdür. Yeni 04-dark-review.png nötr koyu temayı gösterir. Aşağıdaki 23 Eylül aşama açıklamaları tarihseldir; özellikle 03 artık son onayın verilmediği durumu gösterir. Sentetik kişiler kullanıldı.
 
 23 Eylül 2026'da https://dedupesafe.vercel.app/app/?demo=1 üzerinden kaydedildi. Uygulamanın kendi uydurma demo kişileri; HubSpot export'u veya gerçek müşteri sonucu değildir.
 
