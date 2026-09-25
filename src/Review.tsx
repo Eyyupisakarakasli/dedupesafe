@@ -1,3 +1,5 @@
+import { AppBar } from './DisplayControls'
+import { t, useLanguage } from './i18n'
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ScanResult } from './App'
 import type { DuplicateGroup, DedupeField } from './core/types'
@@ -29,6 +31,7 @@ type ReviewProps = {
 }
 
 export function ResultsStep(props: ReviewProps) {
+  useLanguage()
   const { result, headers, confirmedIds, dismissedIds, onBack, selectionRevision = 0 } = props
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<'all' | Status>('all')
@@ -92,51 +95,51 @@ export function ResultsStep(props: ReviewProps) {
   const exportKey = `${selectionRevision}:${[...confirmedIds].sort().join('|')}:${[...dismissedIds].sort().join('|')}`
 
   return <div className="app-container">
-    <a className="app-brand" href="/">DedupeSafe</a>
-    <header><h1>Scan Complete</h1><p>{result.total.toLocaleString()} contacts scanned · {allGroups.length} candidate groups · original file unchanged</p></header>
+    <AppBar />
+    <header><h1>{t("Scan Complete")}</h1><p>{result.total.toLocaleString()} {t("contacts scanned ·")} {allGroups.length} {t("candidate groups · original file unchanged")}</p></header>
     <div className="summary-cards">
-      <div className="summary-card high"><span className="card-num">{approved.length}</span><span className="card-label">Approved groups ({approved.length})</span></div>
-      <div className="summary-card medium"><span className="card-num">{pending.length}</span><span className="card-label">Awaiting decision</span></div>
-      <div className="summary-card unique"><span className="card-num">{result.uniqueContacts.length.toLocaleString()}</span><span className="card-label">No candidate match</span></div>
+      <div className="summary-card high"><span className="card-num">{approved.length}</span><span className="card-label">{t("Approved groups (")}{approved.length})</span></div>
+      <div className="summary-card medium"><span className="card-num">{pending.length}</span><span className="card-label">{t("Awaiting decision")}</span></div>
+      <div className="summary-card unique"><span className="card-num">{result.uniqueContacts.length.toLocaleString()}</span><span className="card-label">{t("No candidate match")}</span></div>
     </div>
-    <p className="visually-hidden" role="status">{announcement}</p>
-    {allGroups.length === 0 ? <p className="no-results">No duplicate candidates were found. The original rows remain unchanged.</p> : <>
+    <p className="visually-hidden" role="status">{t(announcement)}</p>
+    {allGroups.length === 0 ? <p className="no-results">{t("No duplicate candidates were found. The original rows remain unchanged.")}</p> : <>
       <div className="review-toolbar">
-        <label>Search contacts<input type="search" value={query} placeholder="Name, email or company" onChange={event => { setQuery(event.target.value); setPage(0) }} /></label>
-        <label>Group status<select value={filter} onChange={event => { setFilter(event.target.value as typeof filter); setPage(0) }}>
-          <option value="all">All groups ({allGroups.length})</option><option value="pending">Awaiting decision ({pending.length})</option>
-          <option value="approved">Approved ({approved.length})</option><option value="kept">Kept separately ({kept.length})</option>
+        <label>{t("Search contacts")}<input type="search" value={query} placeholder={t("Name, email or company")} onChange={event => { setQuery(event.target.value); setPage(0) }} /></label>
+        <label>{t("Group status")}<select value={filter} onChange={event => { setFilter(event.target.value as typeof filter); setPage(0) }}>
+          <option value="all">{t("All groups (")}{allGroups.length})</option><option value="pending">{t("Awaiting decision (")}{pending.length})</option>
+          <option value="approved">{t("Approved (")}{approved.length})</option><option value="kept">{t("Kept separately (")}{kept.length})</option>
         </select></label>
-        <button className="demo-btn" onClick={nextPending} disabled={!pending.length}>Next awaiting group</button>
+        <button className="demo-btn" onClick={nextPending} disabled={!pending.length}>{t("Next awaiting group")}</button>
       </div>
-      <div className="review-queue" ref={queueRef} tabIndex={-1} aria-label="Contact review queue">
-        <p className="queue-count">{filtered.length ? `${currentPage * PAGE_SIZE + 1}–${Math.min((currentPage + 1) * PAGE_SIZE, filtered.length)} of ${filtered.length} groups` : 'No groups match this search or filter.'}</p>
+      <div className="review-queue" ref={queueRef} tabIndex={-1} aria-label={t("Contact review queue")}>
+        <p className="queue-count">{filtered.length ? t('{start}–{end} of {count} groups', { start: currentPage * PAGE_SIZE + 1, end: Math.min((currentPage + 1) * PAGE_SIZE, filtered.length), count: filtered.length }) : t("No groups match this search or filter.")}</p>
         {visible.map(group => <GroupCard key={group.id} group={group} status={status(group)} view={views[group.id] ?? DEFAULT_VIEW}
           onView={patch => updateView(group.id, patch)}
-          onConfirm={() => act(group.id, props.onConfirm, 'Group approved. Export confirmation was reset.')}
-          onDismiss={() => act(group.id, props.onDismiss, 'All rows in this group will stay in the export.')}
-          onUndo={() => act(group.id, props.onUnconfirm, 'Approval removed. All group rows will stay until you approve again.')}
-          onRestore={() => act(group.id, props.onRestore, 'Group returned for review.')}
+          onConfirm={() => act(group.id, props.onConfirm, "Group approved. Export confirmation was reset.")}
+          onDismiss={() => act(group.id, props.onDismiss, "All rows in this group will stay in the export.")}
+          onUndo={() => act(group.id, props.onUnconfirm, "Approval removed. All group rows will stay until you approve again.")}
+          onRestore={() => act(group.id, props.onRestore, "Group returned for review.")}
           onSelect={props.onSelectRow ? row => {
             if (filter === 'approved') focusTarget.current = ''
             props.onSelectRow?.(group.id, row)
-            setAnnouncement('Selected row changed. Approve this group again before removing rows.')
+            setAnnouncement("Selected row changed. Approve this group again before removing rows.")
           } : undefined}
           onSeparate={props.onSeparateRow ? (row, separate) => {
             focusTarget.current = group.id
             props.onSeparateRow?.(group.id, row, separate)
-            setAnnouncement(separate ? 'Row kept separately. Review the remaining group again.' : 'Row returned to the group. Review the group again.')
+            setAnnouncement(separate ? "Row kept separately. Review the remaining group again." : "Row returned to the group. Review the group again.")
           } : undefined} />)}
       </div>
-      <nav className="queue-pages" aria-label="Review pages">
-        <button className="demo-btn" disabled={currentPage === 0} onClick={() => { focusTarget.current = ''; setPage(currentPage - 1) }}>Previous page</button>
-        <span>Page {currentPage + 1} of {pageCount}</span>
-        <button className="demo-btn" disabled={currentPage + 1 >= pageCount} onClick={() => { focusTarget.current = ''; setPage(currentPage + 1) }}>Next page</button>
+      <nav className="queue-pages" aria-label={t("Review pages")}>
+        <button className="demo-btn" disabled={currentPage === 0} onClick={() => { focusTarget.current = ''; setPage(currentPage - 1) }}>{t("Previous page")}</button>
+        <span>{t("Page")} {currentPage + 1} {t("of")} {pageCount}</span>
+        <button className="demo-btn" disabled={currentPage + 1 >= pageCount} onClick={() => { focusTarget.current = ''; setPage(currentPage + 1) }}>{t("Next page")}</button>
       </nav>
       {/* Reset only export authorization; queue nodes and view preferences survive. */}
       <ExportPanel key={exportKey} result={result} groups={allGroups} approved={approved} headers={headers} confirmedIds={confirmedIds} dismissedIds={dismissedIds} />
     </>}
-    <button className="back-btn" onClick={onBack}>← Upload another file</button>
+    <button className="back-btn" onClick={onBack}>{t("← Upload another file")}</button>
     <ProductFooter />
   </div>
 }
@@ -155,21 +158,21 @@ function ExportPanel({ result, groups, approved, headers, confirmedIds, dismisse
   const rowsAfter = result.total - removed
   const canDownload = confirmed && (!removed || auditStarted)
   return <div className="export-panel">
-    <p className="export-summary">Export keeps <strong>{rowsAfter.toLocaleString()}</strong> of {result.total.toLocaleString()} contacts{removed ? ` · removes ${removed.toLocaleString()} approved duplicate row${removed === 1 ? '' : 's'}` : ' · nothing removed'}</p>
-    <p className="export-scope">Exports include all groups, including those hidden by search or filters.</p>
+    <p className="export-summary">{t('Export keeps {kept} of {total} contacts', { kept: rowsAfter.toLocaleString(), total: result.total.toLocaleString() })}{removed ? t(' · removes {count} approved duplicate rows', { count: removed.toLocaleString() }) : t(" · nothing removed")}</p>
+    <p className="export-scope">{t("Exports include all groups, including those hidden by search or filters.")}</p>
     <div className="export-actions">
-      <button className="scan-btn" onClick={() => setOpen(true)}>Review export</button>
-      <button className="back-btn" onClick={() => { downloadFile(exportAuditCSV(groups, confirmedIds, dismissedIds, headers), 'dedupesafe-audit-report.csv'); setAuditStarted(true) }}>Download audit report</button>
+      <button className="scan-btn" onClick={() => setOpen(true)}>{t("Review export")}</button>
+      <button className="back-btn" onClick={() => { downloadFile(exportAuditCSV(groups, confirmedIds, dismissedIds, headers), 'dedupesafe-audit-report.csv'); setAuditStarted(true) }}>{t("Download audit report")}</button>
     </div>
-    {open && <div className="export-review" role="region" aria-label="Final export confirmation">
-      <h2>Final export check</h2>
-      <p>This export keeps the selected row from each approved group. It does not combine fields or merge records inside HubSpot. Rows kept separately remain intact. Every source field from candidate rows is preserved in the audit report.</p>
-      {removed > 0 && <p>{auditStarted ? 'Audit download started. Check that the file was saved before continuing.' : 'Download the audit report before exporting fewer rows. Keep it private: it contains all original fields, including custom fields.'}</p>}
-      <dl><div><dt>Original rows</dt><dd>{result.total}</dd></div><div><dt>Approved groups</dt><dd>{approved.length}</dd></div><div><dt>Rows removed</dt><dd>{removed}</dd></div><div><dt>Rows in export</dt><dd>{rowsAfter}</dd></div></dl>
-      <label className="confirm-export"><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} />I reviewed every approved group and kept the original CSV as a backup.</label>
+    {open && <div className="export-review" role="region" aria-label={t("Final export confirmation")}>
+      <h2>{t("Final export check")}</h2>
+      <p>{t("This export keeps the selected row from each approved group. It does not combine fields or merge records inside HubSpot. Rows kept separately remain intact. Every source field from candidate rows is preserved in the audit report.")}</p>
+      {removed > 0 && <p>{auditStarted ? t("Audit download started. Check that the file was saved before continuing.") : t("Download the audit report before exporting fewer rows. Keep it private: it contains all original fields, including custom fields.")}</p>}
+      <dl><div><dt>{t("Original rows")}</dt><dd>{result.total}</dd></div><div><dt>{t("Approved groups")}</dt><dd>{approved.length}</dd></div><div><dt>{t("Rows removed")}</dt><dd>{removed}</dd></div><div><dt>{t("Rows in export")}</dt><dd>{rowsAfter}</dd></div></dl>
+      <label className="confirm-export"><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} />{t("I reviewed every approved group and kept the original CSV as a backup.")}</label>
       <button className="scan-btn" disabled={!canDownload} onClick={() => {
         if (canDownload) downloadFile(exportCleanedCSV(approved, [...result.uniqueContacts, ...preserved], result.contacts, headers), 'dedupesafe-reviewed-contacts.csv')
-      }}>Download reviewed CSV</button>
+      }}>{t("Download reviewed CSV")}</button>
     </div>}
   </div>
 }
@@ -186,40 +189,40 @@ function GroupCard({ group, status, view, onView, onConfirm, onDismiss, onUndo, 
   const editable = status !== 'kept'
   return <article className={`group-card ${group.riskLevel}`} data-group-id={group.id}>
     <div className="group-header">
-      <h2 className="group-title" tabIndex={-1}>{status === 'approved' ? 'Approved group' : status === 'kept' ? 'Kept as separate rows' : 'Compare these records'}</h2>
-      <span className="group-size">{compared.contacts.length} contacts{separate.length ? ` · ${separate.length} kept separately` : ''}</span>
+      <h2 className="group-title" tabIndex={-1}>{status === 'approved' ? t("Approved group") : status === 'kept' ? t("Kept as separate rows") : t("Compare these records")}</h2>
+      <span className="group-size">{compared.contacts.length} {t("contacts")}{separate.length ? t(' · {count} kept separately', { count: separate.length }) : ''}</span>
     </div>
     <div className="match-explanation">
-      <p>{reviewSummary(compared)}</p>
-      {group.contacts.length > 2 && <p>Check every remaining contact. Some records may have been linked through another row.</p>}
-      {group.riskLevel !== 'review' && <details open={view.scoreOpen} onToggle={event => onView({ scoreOpen: event.currentTarget.open })}><summary>Matching score</summary><p>{compared.pairs.length === 0 && separate.length ? 'No direct matching pair remains after separating rows.' : `${compared.riskScore}/100 is a comparison score, not the probability that these records belong to the same person.`}</p></details>}
+      <p>{reviewSummary(compared, t)}</p>
+      {group.contacts.length > 2 && <p>{t("Check every remaining contact. Some records may have been linked through another row.")}</p>}
+      {group.riskLevel !== 'review' && <details open={view.scoreOpen} onToggle={event => onView({ scoreOpen: event.currentTarget.open })}><summary>{t("Matching score")}</summary><p>{compared.pairs.length === 0 && separate.length ? t("No direct matching pair remains after separating rows.") : t('{score}/100 is a comparison score, not the probability that these records belong to the same person.', { score: compared.riskScore })}</p></details>}
     </div>
-    {group.needsSelection && <p className="selection-needed" role="status">The selected row was kept separately. Choose a remaining row before approving this group.</p>}
+    {group.needsSelection && <p className="selection-needed" role="status">{t("The selected row was kept separately. Choose a remaining row before approving this group.")}</p>}
     <div className="table-scroll"><table className="group-table">
-      <thead><tr><th>Keep row</th>{FIELDS.map(([field, label]) => <th key={field}>{label}</th>)}{onSeparate && group.contacts.length > 2 && <th>Separate record</th>}</tr></thead>
+      <thead><tr><th>{t("Keep row")}</th>{FIELDS.map(([field, label]) => <th key={field}>{t(label)}</th>)}{onSeparate && group.contacts.length > 2 && <th>{t("Separate record")}</th>}</tr></thead>
       <tbody>{compared.contacts.map(contact => {
         const selected = !group.needsSelection && contact.rowIndex === group.masterContact.rowIndex
         return <tr key={contact.rowIndex} className={selected ? 'master-row' : ''}>
-          <td className="record-position"><label className="row-choice"><input type="radio" name={`keep-${group.id}`} checked={selected} disabled={!onSelect || !editable} onChange={() => onSelect?.(contact.rowIndex)} aria-label={`Keep CSV row ${contact.rowIndex + 2}`} /><span>Row {contact.rowIndex + 2}</span></label></td>
-          {FIELDS.map(([field, label]) => <td key={field} className={!group.needsSelection && contact[field] && contact[field] !== group.masterContact[field] ? 'diff-cell' : undefined}><span className="mobile-field-label" aria-hidden="true">{label}</span>{contact[field] || <span className="empty">—</span>}</td>)}
-          {onSeparate && group.contacts.length > 2 && <td><button className="dismiss-btn" disabled={!editable || compared.contacts.length <= 2} onClick={() => onSeparate(contact.rowIndex, true)} aria-label={`Keep row ${contact.rowIndex + 2} separate`}>Keep separate</button></td>}
+          <td className="record-position"><label className="row-choice"><input type="radio" name={`keep-${group.id}`} checked={selected} disabled={!onSelect || !editable} onChange={() => onSelect?.(contact.rowIndex)} aria-label={t('Keep CSV row {row}', { row: contact.rowIndex + 2 })} /><span>{t("Row")} {contact.rowIndex + 2}</span></label></td>
+          {FIELDS.map(([field, label]) => <td key={field} className={!group.needsSelection && contact[field] && contact[field] !== group.masterContact[field] ? 'diff-cell' : undefined}><span className="mobile-field-label" aria-hidden="true">{t(label)}</span>{contact[field] || <span className="empty">—</span>}</td>)}
+          {onSeparate && group.contacts.length > 2 && <td><button className="dismiss-btn" disabled={!editable || compared.contacts.length <= 2} onClick={() => onSeparate(contact.rowIndex, true)} aria-label={t('Keep row {row} separate', { row: contact.rowIndex + 2 })}>{t("Keep separate")}</button></td>}
         </tr>
       })}</tbody>
     </table></div>
-    {group.contacts.length > 2 && compared.contacts.length === 2 && <p className="group-hint">Two rows remain. Use Keep both below if they should also stay separate.</p>}
-    {separate.length > 0 && <div className="separate-records"><h3>Kept separately, without changes</h3>{separate.map(contact => <div key={contact.rowIndex}>
-      <span>Row {contact.rowIndex + 2}: {contact.email || `${contact.firstName} ${contact.lastName}`}</span>
-      <button className="dismiss-btn" onClick={() => onSeparate?.(contact.rowIndex, false)} disabled={!onSeparate} aria-label={`Return row ${contact.rowIndex + 2} to group`}>Return to group</button>
+    {group.contacts.length > 2 && compared.contacts.length === 2 && <p className="group-hint">{t("Two rows remain. Use Keep both below if they should also stay separate.")}</p>}
+    {separate.length > 0 && <div className="separate-records"><h3>{t("Kept separately, without changes")}</h3>{separate.map(contact => <div key={contact.rowIndex}>
+      <span>{t("Row")} {contact.rowIndex + 2}: {contact.email || `${contact.firstName} ${contact.lastName}`}</span>
+      <button className="dismiss-btn" onClick={() => onSeparate?.(contact.rowIndex, false)} disabled={!onSeparate} aria-label={t('Return row {row} to group', { row: contact.rowIndex + 2 })}>{t("Return to group")}</button>
     </div>)}</div>}
     <SourceFields group={group} view={view} onView={onView} decision={status} />
     <div className="decision-panel">
-      <p>{status === 'kept' ? 'All rows in this group will stay in the new CSV.' : group.needsSelection ? 'Choose a row to keep, or keep all remaining rows.' : `Keep selected row keeps CSV row ${group.masterContact.rowIndex + 2} and removes ${compared.contacts.length - 1} other row${compared.contacts.length > 2 ? 's' : ''} from the new CSV. Values will not be combined.`}</p>
+      <p>{status === 'kept' ? t("All rows in this group will stay in the new CSV.") : group.needsSelection ? t("Choose a row to keep, or keep all remaining rows.") : t('Keep selected row keeps CSV row {row} and removes {count} other rows from the new CSV. Values will not be combined.', { row: group.masterContact.rowIndex + 2, count: compared.contacts.length - 1 })}</p>
       <div className="group-actions">
-        {status === 'kept' ? <button className="dismiss-btn" onClick={onRestore}>Restore for review</button> : <>
-          <span className="master-label">{group.needsSelection ? 'No row selected' : `Selected: CSV row ${group.masterContact.rowIndex + 2}`}</span>
-          {status === 'approved' ? <button className="dismiss-btn" onClick={onUndo}>Undo selection</button> : <>
-            <button className="confirm-btn" disabled={group.needsSelection} onClick={onConfirm}>Keep selected row</button>
-            <button className="dismiss-btn" onClick={onDismiss}>{compared.contacts.length === 2 ? 'Keep both' : 'Keep all rows'}</button>
+        {status === 'kept' ? <button className="dismiss-btn" onClick={onRestore}>{t("Restore for review")}</button> : <>
+          <span className="master-label">{group.needsSelection ? t("No row selected") : t('Selected: CSV row {row}', { row: group.masterContact.rowIndex + 2 })}</span>
+          {status === 'approved' ? <button className="dismiss-btn" onClick={onUndo}>{t("Undo selection")}</button> : <>
+            <button className="confirm-btn" disabled={group.needsSelection} onClick={onConfirm}>{t("Keep selected row")}</button>
+            <button className="dismiss-btn" onClick={onDismiss}>{compared.contacts.length === 2 ? t("Keep both") : t("Keep all rows")}</button>
           </>}
         </>}
       </div>
@@ -232,12 +235,12 @@ function SourceFields({ group, view, onView, decision }: { group: DuplicateGroup
   const differences = fields.filter(field => field.differs)
   const shown = view.allFields ? fields : differences
   return <details className="source-fields" open={view.fieldsOpen} onToggle={event => onView({ fieldsOpen: event.currentTarget.open })}>
-    <summary>Original file: {differences.length} differing field{differences.length === 1 ? '' : 's'}</summary>
+    <summary>{t('Original file: {count} differing fields', { count: differences.length })}</summary>
     {view.fieldsOpen && <>
-      <p>{decision === 'kept' ? 'All values are kept. These are differences between the original rows.' : '“Not carried over” applies only if you approve keeping one row. Separate records stay intact.'}</p>
-      <label className="show-all-fields"><input type="checkbox" checked={view.allFields} onChange={event => onView({ allFields: event.target.checked })} /> Show all original fields</label>
+      <p>{decision === 'kept' ? t("All values are kept. These are differences between the original rows.") : t("“Not carried over” applies only if you approve keeping one row. Separate records stay intact.")}</p>
+      <label className="show-all-fields"><input type="checkbox" checked={view.allFields} onChange={event => onView({ allFields: event.target.checked })} /> {t("Show all original fields")}</label>
       {shown.map(({ field, values }) => <section className="source-field" key={field}><h3>{field}</h3><dl>{values.map(row => <div key={row.rowIndex} className={row.omitted && decision !== 'kept' ? 'source-omitted' : undefined}>
-        <dt>Row {row.rowIndex + 2}{row.selected ? ' · selected' : ''}</dt><dd>{row.value || <span className="empty">Empty</span>}{row.omitted && decision !== 'kept' && <strong className="omitted-label">Not carried over</strong>}</dd>
+        <dt>{t("Row")} {row.rowIndex + 2}{row.selected ? t(" · selected") : ''}</dt><dd>{row.value || <span className="empty">{t("Empty")}</span>}{row.omitted && decision !== 'kept' && <strong className="omitted-label">{t("Not carried over")}</strong>}</dd>
       </div>)}</dl></section>)}
     </>}
   </details>
