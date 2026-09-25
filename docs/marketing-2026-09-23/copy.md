@@ -80,8 +80,8 @@ Do not reuse earlier copy about bill savings, “only exact email”, permanentl
 
 Destination: https://www.reddit.com/r/HubspotApps/comments/1wkg5ol/selfpromotion_saturday_show_us_what_youre_building/
 
-Status: ready, not posted. Use only this permitted thread; recheck its current rules and comment availability at publication.
+Status: published with user approval on 2026-09-25. Comment: https://www.reddit.com/r/HubspotApps/comments/1wkg5ol/comment/pbxuodw/
 
 I built [DedupeSafe](https://dedupesafe.vercel.app/for/owners/reddit/) to review duplicate candidates in HubSpot contact CSVs on your device and export your approved row removals with an audit; it does not combine fields or change your HubSpot portal. If you try an export you are authorized to use, reply here with one wrong match, missed duplicate, or confusing step, using invented examples instead of customer data.
 
-Record the actual comment permalink and publication time after posting; do not count this prepared draft as a campaign.
+Publication recorded in campaigns.csv. Do not post this same comment again.
