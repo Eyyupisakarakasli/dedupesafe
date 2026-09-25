@@ -1,3 +1,5 @@
+import { AppBar } from './DisplayControls'
+import { t, useLanguage } from './i18n'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { detectHubSpotMapping, looksLikeContactExport, normalizeContacts, parseCSV } from './core/csv'
 import { findDuplicateGroups } from './core/matcher'
@@ -36,6 +38,7 @@ const EMPTY_MAPPING: ColumnMapping = {
 }
 
 export default function App() {
+  useLanguage()
   const [step, setStep] = useState<Step>('upload')
   const [parseResult, setParseResult] = useState<ParseResult | null>(null)
   const [mapping, setMapping] = useState<ColumnMapping>(EMPTY_MAPPING)
@@ -68,11 +71,11 @@ export default function App() {
     const isCsv = file.name.toLowerCase().endsWith('.csv') ||
       file.type === 'text/csv' || file.type === 'application/vnd.ms-excel'
     if (!isCsv) {
-      setError('Please choose a .csv file. Export your contacts from HubSpot in CSV format.')
+      setError(t("Please choose a .csv file. Export your contacts from HubSpot in CSV format."))
       return
     }
     if (file.size > MAX_FILE_BYTES) {
-      setError(`That file is ${(file.size / 1024 / 1024).toFixed(0)} MB. The limit is 50 MB — try exporting in smaller batches.`)
+      setError(t('That file is {size} MB. The limit is 50 MB — try exporting in smaller batches.', { size: (file.size / 1024 / 1024).toFixed(0) }))
       return
     }
     try {
@@ -85,7 +88,7 @@ export default function App() {
       setConfirmedIds(new Set())
       setStep('mapping')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to read that CSV.')
+      setError(err instanceof Error ? err.message : t("Failed to read that CSV."))
     }
   }, [])
 
@@ -155,7 +158,7 @@ export default function App() {
       worker.onerror = () => {
         worker.terminate()
         workerRef.current = null
-        fail('The scan worker failed to start.')
+        fail(t("The scan worker failed to start."))
       }
       worker.postMessage({ rows: parseResult.rows, mapping })
       return
@@ -169,7 +172,7 @@ export default function App() {
         const { groups, reviewGroups, uniqueContacts } = findDuplicateGroups(contacts)
         finish(contacts, groups, reviewGroups, uniqueContacts)
       } catch (err) {
-        fail(err instanceof Error ? err.message : 'The scan failed unexpectedly.')
+        fail(err instanceof Error ? err.message : t("The scan failed unexpectedly."))
       }
     }, 50)
   }, [parseResult, mapping])
@@ -255,10 +258,10 @@ export default function App() {
     const pct = Math.round(progress * 100)
     return (
       <div className="app-container">
-        <a className="app-brand" href="/">DedupeSafe</a>
+        <AppBar />
         <header>
-          <h1>Scanning for duplicate candidates…</h1>
-          {parseResult && <p>Comparing {parseResult.totalRows.toLocaleString()} contacts</p>}
+          <h1>{t("Scanning for duplicate candidates…")}</h1>
+          {parseResult && <p>{t("Comparing")} {parseResult.totalRows.toLocaleString()} {t("contacts")}</p>}
         </header>
         <div className="scanning-indicator" role="status" aria-live="polite">
           <div className="spinner" />
@@ -271,9 +274,9 @@ export default function App() {
           >
             <div className="progress-fill" style={{ width: `${Math.max(2, pct)}%` }} />
           </div>
-          <p className="sub">{pct > 0 ? `${pct}% complete` : 'Starting…'} · runs entirely on your device</p>
+          <p className="sub">{pct > 0 ? t('{count}% complete', { count: pct }) : t("Starting…")} {t("· runs entirely on your device")}</p>
         </div>
-        <button className="back-btn" onClick={cancelScan}>Cancel</button>
+        <button className="back-btn" onClick={cancelScan}>{t("Cancel")}</button>
         <ProductFooter />
       </div>
     )
@@ -315,10 +318,10 @@ function UploadStep({ dragOver, error, onDrop, onDragOver, onDragLeave, onFile, 
 }) {
   return (
     <div className="app-container">
-      <a className="app-brand" href="/">DedupeSafe</a>
+      <AppBar />
       <header>
-        <h1>Private duplicate contact review</h1>
-        <p>Check a HubSpot contact CSV locally. Nothing is removed until you approve it.</p>
+        <h1>{t("Private duplicate contact review")}</h1>
+        <p>{t("Check a HubSpot contact CSV locally. Nothing is removed until you approve it.")}</p>
       </header>
 
       <div
@@ -329,10 +332,10 @@ function UploadStep({ dragOver, error, onDrop, onDragOver, onDragLeave, onFile, 
       >
         <div className="drop-zone-content">
           <span className="drop-icon" aria-hidden="true">.csv</span>
-          <p>Drag &amp; drop your HubSpot contact CSV here</p>
-          <p className="sub">or</p>
+          <p>{t("Drag & drop your HubSpot contact CSV here")}</p>
+          <p className="sub">{t("or")}</p>
           {/* Visually hidden rather than `hidden`, so the input stays in the tab order. */}
-          <label className="file-btn" htmlFor="csv-input">Choose file</label>
+          <label className="file-btn" htmlFor="csv-input">{t("Choose file")}</label>
           <input
             id="csv-input"
             className="visually-hidden"
@@ -344,19 +347,17 @@ function UploadStep({ dragOver, error, onDrop, onDragOver, onDragLeave, onFile, 
       </div>
 
       <div className="demo-section">
-        <button className="demo-btn" onClick={onDemo}>Try with demo CSV (15 contacts)</button>
+        <button className="demo-btn" onClick={onDemo}>{t("Try with demo CSV (15 contacts)")}</button>
       </div>
       <details className="inline-help">
-        <summary>Need a contact CSV?</summary>
-        <p>Export your contacts in CSV format. Include Email, First Name, Last Name, Phone and Company where available. Keep the original file as a backup. File limit: 50 MB.</p>
-        <a href="https://knowledge.hubspot.com/import-and-export/export-records" target="_blank" rel="noreferrer">HubSpot’s export instructions ↗</a>
+        <summary>{t("Need a contact CSV?")}</summary>
+        <p>{t("Export your contacts in CSV format. Include Email, First Name, Last Name, Phone and Company where available. Keep the original file as a backup. File limit: 50 MB.")}</p>
+        <a href="https://knowledge.hubspot.com/import-and-export/export-records" target="_blank" rel="noreferrer">{t("HubSpot’s export instructions ↗")}</a>
       </details>
 
       {error && <div className="error-msg" role="alert">{error}</div>}
 
-      <div className="privacy-note">
-        Your file is processed locally. The checker cannot open a network connection.
-      </div>
+      <div className="privacy-note"> {t("Your file is processed locally. The checker cannot open a network connection.")} </div>
       <ProductFooter />
     </div>
   )
@@ -377,24 +378,20 @@ function MappingStep({ parseResult, mapping, error, onChange, onScan, onBack }: 
 
   return (
     <div className="app-container">
-      <a className="app-brand" href="/">DedupeSafe</a>
+      <AppBar />
       <header>
-        <h1>Confirm Column Mapping</h1>
-        <p>{parseResult.totalRows.toLocaleString()} rows detected. Check each column below before scanning.</p>
-        <p className="mapping-help">Choose the column containing each value. The example beside it comes from your first row. Email is required; leave other fields on Skip if your file does not include them.</p>
+        <h1>{t("Confirm Column Mapping")}</h1>
+        <p>{parseResult.totalRows.toLocaleString()} {t("rows detected. Check each column below before scanning.")}</p>
+        <p className="mapping-help">{t("Choose the column containing each value. The example beside it comes from your first row. Email is required; leave other fields on Skip if your file does not include them.")}</p>
       </header>
 
       {!recognised && (
-        <div className="warning-banner" role="alert">
-          This doesn’t look like a HubSpot contact export — no email or name column was recognised.
-          Pick the right columns manually, or re-export from HubSpot.
-        </div>
+        <div className="warning-banner" role="alert"> {t("This doesn’t look like a HubSpot contact export — no email or name column was recognised. Pick the right columns manually, or re-export from HubSpot.")} </div>
       )}
 
       {parseResult.warnings.length > 0 && (
         <div className="warning-banner" role="alert">
-          {parseResult.warnings.join('; ')}. Extra values were dropped — check your export.
-        </div>
+          {parseResult.warnings.join('; ')}{t(". Extra values were dropped — check your export.")} </div>
       )}
 
       <div className="mapping-grid">
@@ -403,13 +400,13 @@ function MappingStep({ parseResult, mapping, error, onChange, onScan, onBack }: 
           const sample = mapping[field] ? parseResult.rows[0]?.[mapping[field] as string] ?? '' : ''
           return (
             <div key={field} className="mapping-row">
-              <label htmlFor={id}>{FIELD_LABELS[field]}</label>
+              <label htmlFor={id}>{t(FIELD_LABELS[field])}</label>
               <select
                 id={id}
                 value={mapping[field] ?? ''}
                 onChange={(e) => onChange(field, e.target.value)}
               >
-                <option value="">— Skip —</option>
+                <option value="">{t("— Skip —")}</option>
                 {parseResult.headers.map((h, i) => (
                   <option key={`${h}-${i}`} value={h}>{h}</option>
                 ))}
@@ -421,7 +418,7 @@ function MappingStep({ parseResult, mapping, error, onChange, onScan, onBack }: 
       </div>
 
       <div className="preview-section">
-        <h2>Preview (first 3 rows)</h2>
+        <h2>{t("Preview (first 3 rows)")}</h2>
         <div className="table-scroll">
           <table>
             <thead>
@@ -440,18 +437,17 @@ function MappingStep({ parseResult, mapping, error, onChange, onScan, onBack }: 
 
       {parseResult.totalRows > SLOW_SCAN_ROWS && (
         <div className="warning-banner">
-          {parseResult.totalRows.toLocaleString()} contacts may take longer to compare. You can cancel the scan and try a smaller export.
-        </div>
+          {parseResult.totalRows.toLocaleString()} {t("contacts may take longer to compare. You can cancel the scan and try a smaller export.")} </div>
       )}
 
       {error && <div className="error-msg" role="alert">{error}</div>}
 
       <button className="scan-btn" disabled={!ready} onClick={onScan}>
         {ready
-          ? `Scan ${parseResult.totalRows.toLocaleString()} contacts for duplicates`
-          : 'Map the Email column to start'}
+          ? t('Scan {count} contacts for duplicates', { count: parseResult.totalRows.toLocaleString() })
+          : t("Map the Email column to start")}
       </button>
-      <button className="back-btn" onClick={onBack}>← Start over</button>
+      <button className="back-btn" onClick={onBack}>{t("← Start over")}</button>
       <ProductFooter />
     </div>
   )

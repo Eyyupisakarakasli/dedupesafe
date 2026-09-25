@@ -1,3 +1,4 @@
+import { t } from './i18n'
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 
 interface Props {
@@ -28,13 +29,11 @@ export class ErrorBoundary extends Component<Props, State> {
     return (
       <div className="app-container">
         <header>
-          <h1>Something went wrong</h1>
-          <p>The app hit an unexpected error. Your file was never uploaded anywhere.</p>
+          <h1>{t("Something went wrong")}</h1>
+          <p>{t("The app hit an unexpected error. Your file was never uploaded anywhere.")}</p>
         </header>
         <div className="error-msg" role="alert">{this.state.error.message}</div>
-        <button className="scan-btn" onClick={() => { this.setState({ error: null }); location.reload() }}>
-          Start over
-        </button>
+        <button className="scan-btn" onClick={() => { this.setState({ error: null }); location.reload() }}> {t("Start over")} </button>
       </div>
     )
   }
