@@ -37,3 +37,7 @@ Teknik prova ve ölçüm kapıları kapandı; e-posta riskine karşı topluluk y
 Demo ve ekran görüntüsü scriptleri güncel arayüze uyarlandı ve yerel production build üzerinde çalıştırıldı. Audit öncesinde reviewed CSV kapalı; audit 14 satır / şema 3, reviewed CSV 14 satır olarak dosyadan doğrulandı. Build ve lint geçti. Bu kontrol HubSpot import/export provasının yerine geçmez.
 
 Yeni [demo GIF](../demo.gif) ve [ekran görüntüsü](../product-screenshot.png) hazır. Hesap provası tamamlandı; [25 Eylül sonuçları](results-2026-09-25.md) esas alınmalı. İlk mesajın Spam’e düşmesi açık risk; izinli tanıtım başlığı ve aynı zincirden geri bildirim planı hazır. Paylaşım yapılmadı.
+
+## İkinci tur hedef araştırması
+
+[Platformlar, somut başlıklar, elenen yerler ve yanıt taslakları](outreach-targets-2026-09-25.md). Bu araştırma turunda yeni yorum yayımlanmadı.
