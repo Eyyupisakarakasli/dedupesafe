@@ -7,7 +7,8 @@ the user approves keeping one selected source row and confirms the final export.
 Live site: https://dedupesafe.vercel.app
 
 [Try the current 15-contact demo](https://dedupesafe.vercel.app/app/?demo=1).
-The archived `docs/demo.gif` predates the current review interface.
+[Watch the demo](docs/demo.gif), re-recorded on 2026-09-25 with the current
+review and required audit-download flow. Uses synthetic contacts.
 
 ## Where it fits
 
