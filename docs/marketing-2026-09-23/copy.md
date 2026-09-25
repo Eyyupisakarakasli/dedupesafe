@@ -1,4 +1,6 @@
-# English copy — ready for review, not posted
+# English copy — invitation drafts and reply templates
+
+Actual publications: [distribution log](distribution-update-2026-09-25.md). The drafts below are not publication evidence. The interface supports English, Turkish and German, with light and dark appearance; mention this only when relevant to the reader.
 
 Only use product invitations in a context that permits them. The two main drafts below are not cleared for unsolicited r/hubspot or HubSpot Community posts. Keep the founder disclosure. For HubSpot Community append: “Drafted with AI assistance; I checked the product descriptions.”
 

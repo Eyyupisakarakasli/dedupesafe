@@ -1,5 +1,9 @@
 # DedupeSafe gönderim paketi — 23 Eylül 2026
 
+## Güncel durum — 25 Eylül
+
+İlk tanıtıma ek olarak Reddit ve LinkedIn’de iki yöntem yorumu yayımlandı ve doğrulandı. Studio görselleri ve demo yenilendi. Henüz doğrulanmış nitel katılımcı yok. [Yayın kanıtları ve sonraki adımlar](distribution-update-2026-09-25.md) güncel durumun kaynağıdır; aşağıdaki hazırlık kayıtlarının yerine geçer.
+
 ## İlk yayın kaydı
 
 25 Eylül 2026: kullanıcı onayıyla ilk iki cümlelik yorum yayımlandı. https://www.reddit.com/r/HubspotApps/comments/1wkg5ol/comment/pbxuodw/ . Oturum açık tarayıcıda Yorum gönderildi bildirimi, metin ve doğru kampanya bağlantısı doğrulandı. Oturum dışı erişim doğrulanmadı (bağımsız web okuması Cache miss). Gün 0: 25 Eylül; 30 günlük değerlendirme: 25 Ekim 2026. Doğrulama saati 09:46 UTC / 12:46 Türkiye; bu saat kesin gönderim saniyesi değildir. İlk 24 saatlik sayım henüz alınmadı; önceki tek QA ziyareti yayın öncesidir.
