@@ -1,8 +1,6 @@
 # Hesap provaları
 
-Durum: hazırlanmış, HubSpot ve e-posta hesabında yürütülmemiş. 23 Eylül'de tarayıcı iki serviste de giriş istedi. Gmail connector USER_NOT_LOGGED_IN döndü. Kullanıcıdan oturum açması ve kendisine ait ikinci posta adresi istendi; şifre istenmedi.
-
-25 Eylül: ikinci test adresi alındı. Açık Outlook hesabı ürün hesabı değil; hesap geçişi bekleniyor. HubSpot Google parola ekranında. Test mesajı ve HubSpot import işlemi henüz yapılmadı.
+25 Eylül: import/export ve iki yönlü e-posta provasını yürüttük. İlk ürün mesajı Gmail Spam klasörüne düştü. [Sonuç ve kanıtlar](results-2026-09-25.md). Aşağıdaki akış tekrarlar için korunmuştur.
 
 ## E-posta
 

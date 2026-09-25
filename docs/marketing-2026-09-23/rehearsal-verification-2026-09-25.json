@@ -1,0 +1,51 @@
+{
+  "date": "2026-09-25",
+  "source": "HubSpot test portal export, live DedupeSafe browser flow",
+  "importId": 179945183,
+  "exportId": 162425005,
+  "sourceRows": 6,
+  "sourceColumns": 213,
+  "reviewedRows": 5,
+  "reviewedColumns": 213,
+  "auditRows": 4,
+  "auditSchema": 3,
+  "auditSourceCellsCompared": 852,
+  "retainedRowsExact": true,
+  "omittedRecordId": "876294341840",
+  "decisions": [
+    {
+      "recordId": "876294341840",
+      "decision": "keep-one-row",
+      "outcome": "removed"
+    },
+    {
+      "recordId": "876293124305",
+      "decision": "keep-one-row",
+      "outcome": "kept-selected"
+    },
+    {
+      "recordId": "876258492654",
+      "decision": "keep-all-rows",
+      "outcome": "kept"
+    },
+    {
+      "recordId": "876289001661",
+      "decision": "keep-all-rows",
+      "outcome": "kept"
+    }
+  ],
+  "files": [
+    {
+      "file": "hubspot-crm-exports-dedupesafe-qa-2026-09-25-2026-09-25.csv",
+      "sha256": "114c8d806395c7407855b67046bb97143a36bfe55d644c4039b49fab01953157"
+    },
+    {
+      "file": "dedupesafe-reviewed-contacts (1).csv",
+      "sha256": "76b40f7ec64d3b73f6a39653893cd1cffc9141e8efbf5aac5ab81e01dfb6e5fc"
+    },
+    {
+      "file": "dedupesafe-audit-report (2).csv",
+      "sha256": "f950238c2876f1e62d55a3bf02df0bb05b06809ea1abcf9f39bc4db558b67afb"
+    }
+  ]
+}
