@@ -12,3 +12,9 @@ Kaynaklar: [r/hubspot sidebar kuralları](https://www.reddit.com/r/hubspot/), [H
 Reddit'in ayrı rules adresi başlık dışında içerik vermedi; kural metni subreddit ana sayfasındaki sidebar'dan okundu. Kullanıcının Reddit/Community hesabının paylaşım erişimi doğrulanmadı. Hiçbir izin talebi veya tanıtım gönderilmedi.
 
 İzin talepleri copy.md içinde taslaktır. Alıcılar Reddit r/hubspot moderatörleri ve Community Guidelines'da belirtilen community@hubspot.com. Yanıt verilmemesi izin değildir. Moderatör onayı gelirse izin verilen metin/bölüm/tarih kapsamını campaigns.csv içine kaydet; sonraki gönderide yeniden güncel kuralı kontrol et.
+
+## 25 Eylül: somut ilk paylaşım bağlamı
+
+[Self-Promotion Saturday](https://www.reddit.com/r/HubspotApps/comments/1wkg5ol/selfpromotion_saturday_show_us_what_youre_building/) başlığını canlı tarayıcıda doğruladık: 6 gün önce, yorum alanı açık; kuruculardan bağlantı ve iki cümle isteniyor. Başlık sahibi sidebar moderatör listesinde de yer alıyor. [Topluluk kuralları](https://www.reddit.com/r/HubspotApps/) sahiplik açıklaması, spam yapmama ve kullanım amacını anlatma şartları içeriyor. copy.md içindeki iki cümle bu bağlam için hazır. Başka başlıklara genel tanıtım izni çıkarılmaz.
+
+Arama önbelleğindeki 1vowx7g başlığı güncel değildi; ilk aday yerine canlı ana sayfadan 1wkg5ol seçildi. Hedef kitle kalitesi belirsiz; uygulama tanıtımlarının bir kısmı HubSpot dışı. Kullanıcı adına yorum henüz gönderilmedi.

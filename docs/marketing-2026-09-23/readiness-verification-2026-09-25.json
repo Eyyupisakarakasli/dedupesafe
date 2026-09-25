@@ -1,0 +1,32 @@
+{
+  "date": "2026-09-25",
+  "analytics": {
+    "source": "Vercel dashboard / Production / Last 24 Hours",
+    "windowUtcApprox": "09:39–09:41",
+    "before": {
+      "visitors": 0,
+      "pageviews": 0
+    },
+    "after": {
+      "visitors": 1,
+      "pageviews": 1,
+      "path": "/for/owners/reddit"
+    },
+    "classification": "founder QA, excluded from participant goal"
+  },
+  "email": {
+    "source": "Gmail Show original for DSQA-20260925",
+    "spf": "PASS",
+    "dkim": "PASS outlook.com",
+    "dmarc": "PASS",
+    "deliverySeconds": 3,
+    "placement": "Spam",
+    "rootCause": "unconfirmed",
+    "mitigation": "feedback in permitted public thread; email optional"
+  },
+  "distribution": {
+    "thread": "https://www.reddit.com/r/HubspotApps/comments/1wkg5ol/selfpromotion_saturday_show_us_what_youre_building/",
+    "status": "prepared_not_published",
+    "qualifiedAudience": "unverified"
+  }
+}

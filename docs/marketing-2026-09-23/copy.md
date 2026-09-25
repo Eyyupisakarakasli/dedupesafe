@@ -16,7 +16,7 @@ I'm looking for feedback from consultants using exports they are authorized to p
 
 https://dedupesafe.vercel.app/for/consultants/community/
 
-Feedback: dedupesafe@outlook.com. It's currently free to use. I'm the developer; DedupeSafe is independent of HubSpot.
+Reply in this thread with feedback using invented examples; please don't share customer data. You can also email dedupesafe@outlook.com. It's currently free to use. I'm the developer; DedupeSafe is independent of HubSpot.
 
 ## Own-portal invitation
 
@@ -32,7 +32,7 @@ I'm looking for people who can try their own export and report one concrete resu
 
 https://dedupesafe.vercel.app/for/owners/community/
 
-Feedback: dedupesafe@outlook.com. It's currently free to use. I'm the developer and am not affiliated with HubSpot.
+Reply in this thread with feedback using invented examples; please don't share customer data. You can also email dedupesafe@outlook.com. It's currently free to use. I'm the developer and am not affiliated with HubSpot.
 
 ## Short answer: only to someone directly asking for a tool
 
@@ -64,7 +64,7 @@ I built DedupeSafe, a browser-based CSV review tool for HubSpot contact exports.
 - What if it misses a duplicate? Report the pattern using invented data. No general accuracy percentage has been established.
 - Does my file upload? The checker processes it locally and has no analytics. Marketing pages use pageview analytics. Email feedback is a separate, voluntary transmission.
 - Price? Currently free to use; no permanent pricing promise.
-- Support? dedupesafe@outlook.com; don't send CSVs, audits or customer personal data.
+- Support? Reply in the original discussion, use the public bug tracker, or email dedupesafe@outlook.com; don't send CSVs, audits or customer personal data.
 
 ## Asset caption and alt text
 
@@ -75,3 +75,13 @@ Alt: Contact column mapping, a candidate group with differing source values, and
 ## Claim boundaries
 
 Do not reuse earlier copy about bill savings, “only exact email”, permanently free service, competitor prices, calibrated accuracy, an empty Network tab, or the unverified 80-row HubSpot experiment. Static page assets still load over the network. Product behavior above is grounded in src/Review.tsx, src/core/export.ts and the live browser verification; channel rules are linked in channels.md.
+
+## First distribution: r/HubspotApps two-sentence comment
+
+Destination: https://www.reddit.com/r/HubspotApps/comments/1wkg5ol/selfpromotion_saturday_show_us_what_youre_building/
+
+Status: ready, not posted. Use only this permitted thread; recheck its current rules and comment availability at publication.
+
+I built [DedupeSafe](https://dedupesafe.vercel.app/for/owners/reddit/) to review duplicate candidates in HubSpot contact CSVs on your device and export your approved row removals with an audit; it does not combine fields or change your HubSpot portal. If you try an export you are authorized to use, reply here with one wrong match, missed duplicate, or confusing step, using invented examples instead of customer data.
+
+Record the actual comment permalink and publication time after posting; do not count this prepared draft as a campaign.
