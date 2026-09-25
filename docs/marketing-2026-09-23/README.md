@@ -2,7 +2,7 @@
 
 ## Güncel durum — 25 Eylül
 
-İlk tanıtıma ek olarak Reddit ve LinkedIn’de iki yöntem yorumu yayımlandı ve doğrulandı. Studio görselleri ve demo yenilendi. İlk tanıtıma bir dizin önerisi yanıtı geldi; gerçek kullanım anlatmıyor. Henüz doğrulanmış nitel katılımcı yok. [Son takip kontrolü](follow-up-2026-09-25.md). [Yayın kanıtları ve sonraki adımlar](distribution-update-2026-09-25.md) güncel durumun kaynağıdır; aşağıdaki hazırlık kayıtlarının yerine geçer.
+25 Eylül kampanya tablosunda 8 yayın kaydı var. Son turda Indie Hackers’a deneyim yanıtı ve eski HubSpot test paylaşımındaki API önerisine yöntem sorusu gönderildi. [Son tur kanıtları](community-follow-up-round-2026-09-25.md), [önceki üç yeni yayın](reddit-forum-round-2026-09-25.md) ve [ilk yanıt kontrolü](follow-up-2026-09-25.md) esas alınmalı. Dizin önerisi ürün kullanımını doğrulamıyor; henüz doğrulanmış nitel katılımcı yok. Bu sayı hesabın tüm tarihsel gönderileri değildir. Studio görselleri ve demo yenilendi. Aşağıdaki hazırlık kayıtları tarihseldir.
 
 ## İlk yayın kaydı
 
@@ -34,7 +34,7 @@ Durum: metin ve görseller hazır; tanıtım yayımlanmadı. Eski 59 numaralı n
 
 Bir paylaşım için tarih, gerçek yayın URL'si, kural/izin kanıtı, kampanya yolu ve görünürlük kaydı oluştur. İlk 24 saatin sayfa görüntülenmesini QA ziyaretlerinden ayrı değerlendir. Sayfa görüntülenmesi tarama veya dönüşüm değildir. Katılımcı tablosuna müşteri CSV'si, audit, gerçek kişi alanları veya e-posta adresi koyma.
 
-Teknik prova ve ölçüm kapıları kapandı; e-posta riskine karşı topluluk yanıtı kullanılacak. Kullanıcının gönderim talimatıyla üç yorum yayımlandı; kayıtlar campaigns.csv içinde. İlk turda tek izinli bağlamı kullan; aynı topluluğa iki segment gönderisini arka arkaya atma. Gelen somut sorulara cevap ver; yanıtsız kişilere otomatik takip gönderme.
+Teknik prova ve ölçüm kapıları kapandı; e-posta riskine karşı topluluk yanıtı kullanılacak. Güncel yayın kayıtları campaigns.csv içinde. Aynı topluluğa iki segment gönderisini arka arkaya atma. r/indiehackers için tek seferlik ürün tanıtımı kullanıldı. Gelen somut sorulara cevap ver; yanıtsız kişilere otomatik takip gönderme.
 
 ## 25 Eylül güncellemesi
 
