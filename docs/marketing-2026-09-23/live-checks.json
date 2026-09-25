@@ -1,0 +1,32 @@
+[
+  {
+    "Path": "/for/consultants/reddit/",
+    "Status": 200,
+    "Email": true,
+    "Noindex": true
+  },
+  {
+    "Path": "/for/owners/reddit/",
+    "Status": 200,
+    "Email": true,
+    "Noindex": true
+  },
+  {
+    "Path": "/for/consultants/community/",
+    "Status": 200,
+    "Email": true,
+    "Noindex": true
+  },
+  {
+    "Path": "/for/owners/community/",
+    "Status": 200,
+    "Email": true,
+    "Noindex": true
+  },
+  {
+    "Path": "/_vercel/insights/script.js",
+    "Status": 200,
+    "Email": false,
+    "Noindex": false
+  }
+]
