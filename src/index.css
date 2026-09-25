@@ -1,6 +1,6 @@
 body {
   margin: 0;
-  background: #f8f9f6;
-  color: #202b28;
+  background: var(--canvas);
+  color: var(--text);
   -webkit-font-smoothing: antialiased;
 }
