@@ -94,7 +94,7 @@ export function ResultsStep(props: ReviewProps) {
   }
   const exportKey = `${selectionRevision}:${[...confirmedIds].sort().join('|')}:${[...dismissedIds].sort().join('|')}`
 
-  return <div className="app-container">
+  return <div className="app-container studio-results">
     <AppBar />
     <header><h1>{t("Scan Complete")}</h1><p>{result.total.toLocaleString()} {t("contacts scanned ·")} {allGroups.length} {t("candidate groups · original file unchanged")}</p></header>
     <div className="summary-cards">
@@ -103,7 +103,7 @@ export function ResultsStep(props: ReviewProps) {
       <div className="summary-card unique"><span className="card-num">{result.uniqueContacts.length.toLocaleString()}</span><span className="card-label">{t("No candidate match")}</span></div>
     </div>
     <p className="visually-hidden" role="status">{t(announcement)}</p>
-    {allGroups.length === 0 ? <p className="no-results">{t("No duplicate candidates were found. The original rows remain unchanged.")}</p> : <>
+    {allGroups.length === 0 ? <p className="no-results">{t("No duplicate candidates were found. The original rows remain unchanged.")}</p> : <div className="studio-workspace">
       <div className="review-toolbar">
         <label>{t("Search contacts")}<input type="search" value={query} placeholder={t("Name, email or company")} onChange={event => { setQuery(event.target.value); setPage(0) }} /></label>
         <label>{t("Group status")}<select value={filter} onChange={event => { setFilter(event.target.value as typeof filter); setPage(0) }}>
@@ -138,7 +138,7 @@ export function ResultsStep(props: ReviewProps) {
       </nav>
       {/* Reset only export authorization; queue nodes and view preferences survive. */}
       <ExportPanel key={exportKey} result={result} groups={allGroups} approved={approved} headers={headers} confirmedIds={confirmedIds} dismissedIds={dismissedIds} />
-    </>}
+    </div>}
     <button className="back-btn" onClick={onBack}>{t("← Upload another file")}</button>
     <ProductFooter />
   </div>
