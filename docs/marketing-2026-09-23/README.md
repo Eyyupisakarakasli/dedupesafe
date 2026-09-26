@@ -1,8 +1,8 @@
 # DedupeSafe gönderim paketi — 23 Eylül 2026
 
-## Güncel durum — 25 Eylül
+## Güncel durum — 26 Eylül
 
-25 Eylül kampanya tablosunda 8 yayın kaydı var. Son turda Indie Hackers’a deneyim yanıtı ve eski HubSpot test paylaşımındaki API önerisine yöntem sorusu gönderildi. [Son tur kanıtları](community-follow-up-round-2026-09-25.md), [önceki üç yeni yayın](reddit-forum-round-2026-09-25.md) ve [ilk yanıt kontrolü](follow-up-2026-09-25.md) esas alınmalı. Dizin önerisi ürün kullanımını doğrulamıyor; henüz doğrulanmış nitel katılımcı yok. Bu sayı hesabın tüm tarihsel gönderileri değildir. Studio görselleri ve demo yenilendi. Aşağıdaki hazırlık kayıtları tarihseldir.
+26 Eylül kampanya tablosunda 10 yayın kaydı var. [Son kontrol ve iki yeni etkileşim](check-and-outreach-2026-09-26.md): yeni kullanım geri bildirimi yok; kayan son 24 saat panelinde kaynağı belirsiz 1 ziyaret / 1 görüntülenme var. [Sabah kontrolü](check-2026-09-26-morning.md) ayrı zaman aralığını gösterir. Aşağıdaki paragraf 25 Eylül turunu özetler. Son turda Indie Hackers’a deneyim yanıtı ve eski HubSpot test paylaşımındaki API önerisine yöntem sorusu gönderildi. [Son tur kanıtları](community-follow-up-round-2026-09-25.md), [önceki üç yeni yayın](reddit-forum-round-2026-09-25.md) ve [ilk yanıt kontrolü](follow-up-2026-09-25.md) esas alınmalı. Dizin önerisi ürün kullanımını doğrulamıyor; henüz doğrulanmış nitel katılımcı yok. Bu sayı hesabın tüm tarihsel gönderileri değildir. Studio görselleri ve demo yenilendi. Aşağıdaki hazırlık kayıtları tarihseldir.
 
 ## İlk yayın kaydı
 
